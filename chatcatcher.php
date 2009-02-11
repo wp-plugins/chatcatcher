@@ -4,7 +4,11 @@
 //* This script can be used with any blog engine.
 //* 
 //*****************************************************************************
-$ccVersion = 2.2;
+$ccVersion = 2.51;
+
+//*****************************************************************************
+//* WORDPRESS USERS - Stop.  All settings should be changed within WordPress.
+//*****************************************************************************
 
 //*****************************************************************************
 //* REQUIRED SETTINGS 
@@ -21,15 +25,15 @@ $ccVersion = 2.2;
 $cc_secret = '%%secret%%';
 
 //*****************************************************************************
-//* Admin Email - Leave this blank for WordPress.
-//* All other blogs must supply an email address.
+//* Admin Email
 //*****************************************************************************
 $admin_email='';
 
 //*****************************************************************************
-//* Blog Home - Leave this blank for WordPress.
-//* All other blogs must supply the blog's home url.
+//* Blog Home
+//* Your blog's home url.  Do not include index.php, index.htm, default.asp, etc.
 //* You may include the 'www' or leave it out.  We will search for both.
+//* Example:  http://myblog.com
 //*****************************************************************************
 $blog_home='http://';
 
@@ -59,6 +63,7 @@ KEEPME1;
 //*****************************************************************************
 $cclog='N';
 
+
 //*****************************************************************************
 //* WORDPRESS SPECIFIC - Stop here for all other blogs.
 //*****************************************************************************
@@ -68,7 +73,7 @@ $cclog='N';
 	Description: Post comments from social media services to your blog.
 	Author: Shannon Whitley
 	Author URI: http://chatcatcher.com
-	Version: 2.2
+	Version: 2.51
 */
 
 //*****************************************************************************
@@ -80,7 +85,7 @@ $cclog='N';
 $cc_template = <<<KEEPME2
 <strong>%%title%%</strong>
 <a href="%%profile_link%%" title="%%title%%">
-<div title="%%blog_name%%" style="float:left;margin-right:10px;padding:0;width:60px;height:60px;background:url(http://s3.amazonaws.com/static.whitleymedia/picbg.jpg) no-repeat top;cursor:hand;">
+<div title="%%blog_name%%" style="float:left;margin-right:10px;padding:0;width:60px;height:60px;background:url(%%plugin_url%%/chatcatcher/picbg.jpg) no-repeat top;cursor:hand;">
 </div>
 <div title="%%blog_name%%" style="float:left;margin-left:-70px;margin-right:10px;padding:0;width:60px;height:60px;background:url(%%pic%%) no-repeat top;cursor:hand;">
 </div>
@@ -130,64 +135,74 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+//*****************************************************************************
+//* MAIN
+//*****************************************************************************
 $WPBlog = 'N';
 $pageShow = 'Y';
-if(function_exists('get_option') || file_exists('../../../wp-load.php'))
+if(function_exists('get_option'))
 {
+    add_action("init", "cc_contact_accept",1);
     $WPBlog = 'Y';
-    if (function_exists('get_option')) {
-        register_activation_hook( __FILE__, 'ccPlugin_Activate');
-        register_deactivation_hook( __FILE__, 'ccPlugin_Deactivate' );
-        add_action('plugins_loaded','ccPlugin_Loaded');
-        $pageShow = 'N';
-    }
-    else
-    {
-        include_once('../../../wp-load.php');
-        wp('tb=1');
-    }
+   	add_action("admin_menu", "cc_config_page");
+    $pageShow = 'N';
+
+    //Globals
+    if ( get_option( "cc_secret" ) != "" )
+      $cc_secret = get_option('cc_secret');
+    if ( get_option( "cc_postTrackbacks" ) != "" )
+      $postTrackbacks = get_option('cc_postTrackbacks');
+    if ( get_option( "cc_postAsAdmin" ) != "" )
+      $postAsAdmin = get_option('cc_postAsAdmin');
+    if ( get_option( "cc_template" ) != "" )
+      $cc_template = get_option('cc_template');
+    if ( get_option( "cc_exclude" ) != "" )
+      $cc_exclude = get_option('cc_exclude');
 }
 
-if(isset($_REQUEST["secret"]))
+if(!isset($_REQUEST["ccwp"]))
 {
-    if($_POST["secret"] == $cc_secret)
-    {
-        if(isset($_POST['trackback-uri']))
-        {
-            ccTrackBack();
-        }
-        else
-        {
-        	header('Content-Type: text; charset=UTF-8');
-            die('trackback-uri not found');
-        }        
-    }
-}
-else
-{
-    $postComments = 'N';
-    if($WPBlog == 'Y' && $postTrackbacks == 'N')
-    {
-        $postComments = 'Y';
-    }
-    if($pageShow == 'Y')
-    {
-    	header('Content-Type: text/html; charset=UTF-8');
-    	echo '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">';
-        echo '<html><head><title>Chat Catcher</title></head><body>';
-        echo '<div style="font-family:Arial"><h1>Chat Catcher</h1>';
-        if($WPBlog != 'Y')
-        {
-            echo '<p><a href="chatcatcher.php?blog_activate=1">Activate This Script</a></p>';
-        }
-        echo '<p><a href="http://www.chatcatcher.com/tester.aspx?&a='.cc_selfURL().'">Test This Script</a></p>';
-        echo '<p>&nbsp;</p><p><strong>System Information</strong>';
-        echo '<br/>Version: '.$ccVersion.'<br/>';
-        echo '<br/>WordPress Blog: '.$WPBlog.'<br/>Post Comments: '.$postComments.'<br/>Post Trackbacks: '.$postTrackbacks.'</p>';
-        echo '<p><a href="http://www.chatcatcher.com">Chat Catcher</a></p>';
-        echo '</div>';
-        echo '</body></html>';
-    }
+  if(isset($_REQUEST["secret"]))
+  {
+      if($_POST["secret"] == $cc_secret)
+      {
+          if(isset($_POST['trackback-uri']))
+          {
+              ccTrackBack();
+          }
+          else
+          {
+        	  header('Content-Type: text; charset=UTF-8');
+              die('trackback-uri not found');
+          }        
+      }
+  }
+  else
+  {
+      $postComments = 'N';
+      if($WPBlog == 'Y' && $postTrackbacks == 'N')
+      {
+          $postComments = 'Y';
+      }
+      if($pageShow == 'Y')
+      {
+    	  header('Content-Type: text/html; charset=UTF-8');
+    	  echo '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">';
+          echo '<html><head><title>Chat Catcher</title></head><body>';
+          echo '<div style="font-family:Arial"><h1>Chat Catcher</h1>';
+          if($WPBlog != 'Y')
+          {
+              echo '<p><a href="chatcatcher.php?blog_activate=1">Activate This Script</a></p>';
+          }
+          echo '<p><a href="http://www.chatcatcher.com/tester.aspx?&a='.cc_selfURL().'">Test This Script</a></p>';
+          echo '<p>&nbsp;</p><p><strong>System Information</strong>';
+          echo '<br/>Version: '.$ccVersion.'<br/>';
+          echo '<br/>WordPress Blog: '.$WPBlog.'<br/>Post Comments: '.$postComments.'<br/>Post Trackbacks: '.$postTrackbacks.'</p>';
+          echo '<p><a href="http://www.chatcatcher.com">Chat Catcher</a></p>';
+          echo '</div>';
+          echo '</body></html>';
+      }
+  }
 }
 
 if(isset($_GET['blog_activate']))
@@ -195,8 +210,9 @@ if(isset($_GET['blog_activate']))
     ccBlog_Register();
 }
 
+
 //*****************************************************************************
-//* ccTrackBack - Main Process
+//* ccTrackBack - Handle CC Input
 //*****************************************************************************
 function ccTrackBack() {
 
@@ -267,13 +283,14 @@ function ccTrackBack() {
         ccTrackback_response(0, '');
     }	
 }
+
 //*****************************************************************************
 //* ccWPComment - WordPress Comment Processing
 //*****************************************************************************
 function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile_link)
 {
     global $wpdb, $wp_query, $postAsAdmin, $cc_template, $postTrackbacks;
-    
+   
     $title     = stripslashes($title);
     $excerpt   = stripslashes($excerpt);
     $blog_name = stripslashes($blog_name);
@@ -304,7 +321,7 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
 	$screen_name = trim($temp[0]);
 	$comment_content = str_replace('%%screen_name%%',$screen_name,$comment_content);
 	$comment_content = str_replace('%%blog_name%%',$blog_name,$comment_content);
-
+    $comment_content = str_replace('%%plugin_url%%',WP_PLUGIN_URL,$comment_content);
 	
 	$dupe = $wpdb->get_results( $wpdb->prepare("SELECT * FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_author_url = %s", $comment_post_ID, $comment_author_url) );
 	if ( $dupe )
@@ -346,32 +363,75 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
 
 	$commentdata['comment_approved'] = wp_allow_comment($commentdata);
 
-	$comment_ID = wp_insert_comment($commentdata);
+    $comment_ID = wp_insert_comment($commentdata);
 
-	do_action('comment_post', $comment_ID, $commentdata['comment_approved']);
+    do_action('comment_post', $comment_ID, $commentdata['comment_approved']);
 
-	if ( 'spam' !== $commentdata['comment_approved'] ) { // If it's spam save it silently for later crunching
-		if ( '0' == $commentdata['comment_approved'] )
-			wp_notify_moderator($comment_ID);
+    if ( 'spam' !== $commentdata['comment_approved'] ) { // If it's spam save it silently for later crunching
+        if ( '0' == $commentdata['comment_approved'] )
+	        wp_notify_moderator($comment_ID);
 
-		$post = &get_post($commentdata['comment_post_ID']); // Don't notify if it's your own comment
+        $post = &get_post($commentdata['comment_post_ID']); // Don't notify if it's your own comment
 
-		if ( get_option('comments_notify') && $commentdata['comment_approved'] && $post->post_author != $commentdata['user_ID'] )
-			wp_notify_postauthor($comment_ID, $commentdata['comment_type']);
+        if ( get_option('comments_notify') && $commentdata['comment_approved'] && $post->post_author != $commentdata['user_ID'] )
+	        wp_notify_postauthor($comment_ID, $commentdata['comment_type']);
 	}
 	
-	//disqus
-	if(function_exists('dsq_is_installed') && file_exists('../disqus/export.php'))
+	
+	//DISQUS
+	if(function_exists('dsq_is_installed'))
 	{
-	        global $wp_version;
-	    	require_once('../disqus/export.php');
-	        dsq_export_wp();
-	}
+        class ccDisqusAPI extends DisqusAPI  {
+	        function create_post($thread_id, $message, $author_name, $author_email, $author_url) {
+		        $response = urlopen(DISQUS_API_URL . '/api/create_post/', array(
+			        'forum_api_key' => $this->forum_api_key,
+			        'thread_id'	=> $thread_id,
+			        'message'	=> $message,
+			        'author_name' => $author_name,
+			        'author_email'	=> $author_email,
+			        'author_url'	=> $author_url
+		        ));
+		        $data = $response['data'];
+		        if(!$data) {
+			        return -1;
+		        }
+		        return $data;
+	        }
+        }
+        $post = get_post($comment_post_ID); 
+    	$permalink = $post->guid;
+    	$title = $post->post_title;
+    	$excerpt = $post->post_excerpt;
 
+        $cc_dsq_api = new ccDisqusAPI(get_option('disqus_forum_url'), get_option('disqus_api_key'));
+
+        //Retrieve the Thread ID        
+	    $dsq_response = $cc_dsq_api->get_thread($post, $permalink, $title, $excerpt);
+	    if( $dsq_response < 0 ) {
+            ccTrackback_response(1, 'DISQUS get_thread failed.');	    
+		    return false;
+	    }
+	    $thread_id = $dsq_response['thread_id'];
+
+        //Convert div to code -- DISQUS doesn't allow div.
+        $comment_content = str_replace('div','code',$comment_content);
+        //Adjust top of background.
+        $comment_content = str_replace('background:url(http://s3.amazonaws.com/static.whitleymedia/picbg.jpg)','margin-top:15px;background:url(http://s3.amazonaws.com/static.whitleymedia/picbg.jpg)',$comment_content);
+        //Create the comment on DISQUS.
+        $dsq_response = $cc_dsq_api->create_post($thread_id,$comment_content,$comment_author,$comment_author_email,$comment_author_url);
+        if( $dsq_response < 0 ) {
+            ccTrackback_response(1, 'DISQUS create_post failed.');
+        }        
+	}
 }
 
+//*****************************************************************************
+//* ccTrackback_response - XML Response
+//*****************************************************************************
 function ccTrackback_response($error = 0, $error_message = '') {
-    ccLogIt($error.' '.$error_message);
+  ccLogIt($error.' '.$error_message);
+  ob_get_clean();
+  
 	header('Content-Type: text/xml; charset=UTF-8');
 	if ($error) {
 		echo '<?xml version="1.0" encoding="utf-8"?'.">\n";
@@ -386,8 +446,12 @@ function ccTrackback_response($error = 0, $error_message = '') {
 		echo "<error>0</error>\n";
 		echo "</response>";
 	}
+	die();
 }
 
+//*****************************************************************************
+//* ccRemoveSubscribeToComments
+//*****************************************************************************
 function ccRemoveSubscribeToComments()
 {
     global $wp_filter;
@@ -418,6 +482,9 @@ function ccRemoveSubscribeToComments()
 	}
 }
 
+//*****************************************************************************
+//* ccLogIt
+//*****************************************************************************
 function ccLogIt($msg)
 {
 	global $cclog;
@@ -430,16 +497,43 @@ function ccLogIt($msg)
 	return true;
 }
 
+//*****************************************************************************
+//* cc_contact_accept - WP init process to handle communication from CC.
+//*****************************************************************************
+function cc_contact_accept()
+{
+    global $cc_secret;
+    
+    if(isset($_REQUEST["ccwp"]) && isset($_REQUEST["secret"]))
+    {
+        if($_POST["secret"] == $cc_secret)
+        {
+            if(isset($_POST['trackback-uri']))
+            {
+              ccTrackBack();
+            }
+            else
+            {
+        	    header('Content-Type: text; charset=UTF-8');
+              die('trackback-uri not found');
+            }        
+        }
+    }
+}
+
+//*****************************************************************************
+//* ccPlugin_Register - WordPress registration with CC.
+//*****************************************************************************
 function ccPlugin_Register() {
 
-    global $cc_secret;
+    global $cc_secret, $cc_template, $ccOverride;
     
     if ( !class_exists('Snoopy') ) {
         include_once( ABSPATH . WPINC . '/class-snoopy.php' );
     } 
     $siteurl = get_option('siteurl');
     $home = get_option('home');
-    $plugin_url = $siteurl.'/wp-content/plugins/chatcatcher/chatcatcher.php';
+    $plugin_url = cc_slashit($siteurl).'?ccwp=true';
     $email = get_option("admin_email");
 
     $snoopy = new Snoopy();
@@ -458,46 +552,17 @@ function ccPlugin_Register() {
     if(@$snoopy->submit($url,$post))
     {
         $results = $snoopy->results;
-        if(strlen($results) > 0 && strpos($results,'Congratulations') === false)
-        {
-            if(function_exists('deactivate_plugins'))
-            {
-                deactivate_plugins('chatcatcher/chatcatcher.php');
-            }
-            else
-            {
-                $results.='<p>Please deactivate this plugin and try again.</p>';
-            }
-            wp_die($results.'<p><a href="plugins.php">Return</a></p>');
-        }
     } 
     else {
         $results = "Error contacting Chat Catcher: ".$snoopy->error."\n";
-        if(function_exists('deactivate_plugins'))
-        {
-            deactivate_plugins('chatcatcher/chatcatcher.php');
-        }
-        else
-        {
-            $results.='<p>Please deactivate this plugin and try again.</p>';
-        }
-        wp_die($results.'<p><a href="plugins.php">Return</a></p>');
     }
+    wp_die($results.'<p><a href="options-general.php?page=chatcatcher/chatcatcher.php">Return</a></p>');
+
 }
 
-function ccPlugin_Loaded()
-{
-    $ccIni = get_option('ChatCatcherInstalled');
-    if(!empty($ccIni))
-    {
-        if($ccIni == 'N')
-        {
-            update_option('ChatCatcherInstalled','Y');
-            ccPlugin_Register();
-        }
-    }
-}
-
+//*****************************************************************************
+//* ccBlogRegister - Non-WordPress registration with CC
+//*****************************************************************************
 function ccBlog_Register() {
 
     global $cc_secret, $blog_home, $admin_email;
@@ -535,25 +600,177 @@ function ccBlog_Register() {
     }
 }
 
-
-function ccPlugin_Activate()
+//*****************************************************************************
+//* cc_config_page - WordPress admin page
+//*****************************************************************************
+function cc_config_page()
 {
-    $ccIni = get_option('ChatCatcherInstalled');
-    if(empty($ccIni))
-    {
-        update_option('ChatCatcherInstalled','N');
-    }
+	add_submenu_page("options-general.php", "Chat Catcher",
+		"Chat Catcher", 10, __FILE__, "chatcatcher_configuration");
 }
 
-function ccPlugin_Deactivate()
+//*****************************************************************************
+//* ccClear - WordPress clear db options
+//*****************************************************************************
+function ccClear()
 {
-    $ccIni = get_option('ChatCatcherInstalled');
-    if(!empty($ccIni))
-    {
-        delete_option('ChatCatcherInstalled');
-    }
+    delete_option( "cc_secret");
+    delete_option( "cc_postTrackbacks");
+    delete_option( "cc_postAsAdmin");
+    delete_option( "cc_template");
+    delete_option( "cc_exclude");
 }
 
+//*****************************************************************************
+//* chatcatcher_configuration - WordPress admin page processing
+//*****************************************************************************
+function chatcatcher_configuration()
+{
+    global $cc_secret, $postTrackbacks, $postAsAdmin, $cc_template, $cc_exclude;
+
+		// Save Options
+		if (isset($_POST["cc_save"]) || isset($_POST["cc_activate"])) {
+			// ...the options are updated.
+			update_option('cc_secret', stripslashes($_POST["cc_secret"]) );
+			update_option('cc_template', stripslashes($_POST["cc_template"]) );
+			update_option('cc_exclude', stripslashes($_POST["cc_exclude"]) );
+			update_option('cc_postTrackbacks',
+				( $_POST["cc_postTrackbacks"] == 1 ? 'Y' : 'N' ));
+			//Reverse the logic for the user.
+			update_option('cc_postAsAdmin',
+				( $_POST["cc_postAsAdmin"] == 1 ? 'N' : 'Y' ));
+		}
+		
+	    // First Time?
+	    if ( get_option( "cc_secret" ) == "" )
+            update_option( "cc_secret" , cc_NewGuid() );
+	    if ( get_option( "cc_postTrackbacks" ) == "" )
+		    update_option( "cc_postTrackbacks" , "Y" );
+	    if ( get_option( "cc_postAsAdmin" ) == "" )
+		    update_option( "cc_postAsAdmin" , "Y" );
+	    if ( get_option( "cc_template" ) == "" )
+		    update_option( "cc_template" , $cc_template );
+	
+		// Clear?
+		if(isset($_POST["cc_clear"]))
+		{
+		    ccClear();
+		}	
+			
+		// Get the Data
+		$cc_secret = get_option('cc_secret');
+		$cc_template = get_option('cc_template');
+		$cc_exclude = get_option('cc_exclude');
+		$cc_postTrackbacks = ( get_option('cc_postTrackbacks') == 'Y' ?
+			"checked='true'" : "");
+		$postTrackbacks = get_option('cc_postTrackbacks');
+		$cc_postAsAdmin = ( get_option('cc_postAsAdmin') == 'N' ?
+			"checked='true'" : "");
+		$postAsAdmin = get_option('cc_postAsAdmin');
+		
+		// Register
+		if (isset($_POST["cc_activate"])) {
+		    ccPlugin_Register();
+    }
+?>
+<img src="<?php echo WP_PLUGIN_URL."/chatcatcher/"; ?>ccbbl.png" align="right" style="margin:20px;"/>
+    <h3>Chat Catcher Configuration</h3>
+    <form action='' method='post' id='cc_conf'>
+      <h4>Actions</h4>
+      <p>
+        <a href="http://www.chatcatcher.com/tester.aspx?&a=<?php
+        $siteurl = cc_slashit(get_option('siteurl'));
+        echo $siteurl; ?>?ccwp=true" target="_blank">Test Chat Catcher
+        </a> | <a href="http://www.chatcatcher.com" target="_blank">Chat Catcher Home</a>
+      </p>
+      <p class="submit">
+        <input type='submit' name='cc_activate' value='Register This Blog' />
+      </p>
+
+      <h4>Options</h4>
+      <table cellspacing="20" width="60%">
+        <tr>
+          <td width="20%" valign="top">Secret</td>
+          <td>
+            <input type='text' name='cc_secret' value='<?php echo $cc_secret ?>' size="50" />
+                <br/><small>
+                  A secret is required to communicate with the Chat Catcher server.<br/>You should not need to change this unless you have already registered this blog.
+                </small>
+              
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">Exclusion List</td>
+          <td>
+            <textarea name='cc_exclude' rows="5" cols="50"><?php echo $cc_exclude; ?></textarea>
+            <br/>
+            <small>A list of users who will be rejected.  You may include your own username.  Each username should begin on a separate line.</small>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">Post Trackbacks?</td>
+          <td>
+            <input type='checkbox' name='cc_postTrackbacks' value='1' 
+              <?php echo $cc_postTrackbacks ?>/>
+              <br/><small>If this box is checked Chat Catcher will post trackbacks to your blog.  If unchecked, Chat Catcher will post a normal comment.</small>
+            </td>
+        </tr>
+        <td valign="top">Moderate All?</td>
+        <td>
+          <input type='checkbox' name='cc_postAsAdmin' value='1' 
+            <?php echo $cc_postAsAdmin ?>/>
+            <br/><small>Check this box if you'd like to moderate all Chat Catcher posts.</small>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">Template</td>
+          <td>
+            <textarea name='cc_template' rows="5" cols="50"><?php echo $cc_template; ?></textarea>
+            <br/>
+            <small>You can modify the HTML in this comment template.  Special variables are enclosed in double-percent signs.  Do not remove %%excerpt%% (the main comment).</small>
+          </td>
+        </tr>
+      </table>
+      <p class="submit">
+        <input type='submit' name='cc_save' value='Save Settings' />
+      </p>
+      <!--<p class="submit">
+        <input type='submit' name='cc_clear' value='Clear Settings' />
+      </p>-->
+    </form>
+<?php
+			
+}
+
+//*****************************************************************************
+//* cc_slashit - Utility for end slash on blog urls
+//*****************************************************************************
+function cc_slashit($val)
+{
+    $val = $val.'/';
+    $val = str_replace('//','/',$val);
+    $val = str_replace(':/','://',$val);
+    return $val;
+}
+
+//*****************************************************************************
+//* cc_NewGuid
+//*****************************************************************************
+function cc_NewGuid() { 
+    $s = strtoupper(md5(uniqid(rand(),true))); 
+    $guidText = 
+        substr($s,0,8) . '-' . 
+        substr($s,8,4) . '-' . 
+        substr($s,12,4). '-' . 
+        substr($s,16,4). '-' . 
+        substr($s,20); 
+    return $guidText;
+}
+
+
+//*****************************************************************************
+//* cc_selfURL - Utility to get the url of the current page
+//*****************************************************************************
 function cc_selfURL() {
     $addl = '';
     if(isset($_SERVER['REQUEST_URI']))
@@ -1761,10 +1978,5 @@ class Http
         }
     }
 }
-
-
-
-
-
 
 ?>
