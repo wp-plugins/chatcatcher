@@ -23,5 +23,6 @@ Post comments from social media services to your blog.
 1. Click on `Register This Blog`.  The plugin will contact the Chat Catcher server and confirm your registration.
 
 
+== Screenshots ==
 
-
+== Frequently Asked Questions ==
