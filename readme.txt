@@ -12,7 +12,7 @@ Post comments from social media services to your blog.
 
 Post comments from social media services to your blog.
 
-Installation:
+Instructions:
 
 1. If you are a current user, locate your Chat Catcher secret and save it somewhere safe.
 1. Upload `chatcatcher.php` and the included image files to the `/wp-content/plugins/chatcatcher/` directory.
@@ -31,7 +31,3 @@ Installation:
 1. Review the options and make any necessary changes.
 1. Click on `Register This Blog`.  The plugin will contact the Chat Catcher server and confirm your registration.
 
-
-== Screenshots ==
-
-== Frequently Asked Questions ==
