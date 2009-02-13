@@ -1,7 +1,7 @@
 === Plugin Name ===
 Contributors: swhitley, johneckman
 Donate link: 
-Tags: comments, Twitter, FriendFeed, identi.ca, social media, blog, tweetback, tinyurl
+Tags: comments, Twitter, FriendFeed, identi.ca, social media, blog, tweetback,  tinyurl
 Requires at least: 2.7
 Tested up to: 2.7
 Stable tag: 2.51
