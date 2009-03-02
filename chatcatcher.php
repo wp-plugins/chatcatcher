@@ -4,7 +4,7 @@
 //* This script can be used with any blog engine.
 //* 
 //*****************************************************************************
-$ccVersion = 2.51;
+$ccVersion = 2.53;
 
 //*****************************************************************************
 //* WORDPRESS USERS - Stop.  All settings should be changed within WordPress.
@@ -73,7 +73,7 @@ $cclog='N';
 	Description: Post comments from social media services to your blog.
 	Author: Shannon Whitley
 	Author URI: http://chatcatcher.com
-	Version: 2.51
+	Version: 2.53
 */
 
 //*****************************************************************************
@@ -92,6 +92,8 @@ $cc_template = <<<KEEPME2
 </a>
 %%excerpt%%
 KEEPME2;
+
+$cc_comment_author="%%screen_name%% (%%name%%)";
 
 //*****************************************************************************
 //* WordPress: Post As Trackback
@@ -143,6 +145,8 @@ $pageShow = 'Y';
 if(function_exists('get_option'))
 {
     add_action("init", "cc_contact_accept",1);
+    add_filter("get_avatar", "cc_get_avatar");
+    add_filter("get_comment_author", "cc_comment_author");
     $WPBlog = 'Y';
    	add_action("admin_menu", "cc_config_page");
     $pageShow = 'N';
@@ -156,6 +160,8 @@ if(function_exists('get_option'))
       $postAsAdmin = get_option('cc_postAsAdmin');
     if ( get_option( "cc_template" ) != "" )
       $cc_template = get_option('cc_template');
+    if ( get_option( "cc_comment_author" ) != "" )
+      $cc_comment_author = get_option('cc_comment_author');
     if ( get_option( "cc_exclude" ) != "" )
       $cc_exclude = get_option('cc_exclude');
 }
@@ -209,6 +215,40 @@ if(isset($_GET['blog_activate']))
 {
     ccBlog_Register();
 }
+
+//*****************************************************************************
+//* cc_get_avatar - Hide avatar on Chat Catcher comments.
+//*****************************************************************************
+function cc_get_avatar($avatar)
+{
+    $ret = $avatar; 
+    $text = get_comment_text();
+    if(strpos($text,'picbg.jpg') > 0)
+    {
+        $ret = '';
+    }
+    return $ret;
+}
+
+//*****************************************************************************
+//* cc_comment_author - Reformat the name based on user preference.
+//*****************************************************************************
+function cc_comment_author($comment_author)
+{
+    global $cc_comment_author;
+    
+    if(strpos($comment_author,'(') > 2)
+    {
+	    $temp = explode('(',$comment_author);
+	    $screen_name = trim($temp[0]);
+        $name = str_replace(')','',$temp[1]);
+
+	    $cc_comment_author = str_replace('%%screen_name%%',$screen_name,$cc_comment_author);
+	    $comment_author = str_replace('%%name%%',$name,$cc_comment_author);
+    }
+    return $comment_author;
+}
+
 
 
 //*****************************************************************************
@@ -289,7 +329,7 @@ function ccTrackBack() {
 //*****************************************************************************
 function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile_link)
 {
-    global $wpdb, $wp_query, $postAsAdmin, $cc_template, $postTrackbacks;
+    global $wpdb, $wp_query, $postAsAdmin, $cc_template, $cc_comment_author, $postTrackbacks;
    
     $title     = stripslashes($title);
     $excerpt   = stripslashes($excerpt);
@@ -319,6 +359,8 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
 	$comment_content = str_replace('%%excerpt%%',$excerpt,$comment_content);
 	$temp = explode('(',$blog_name);
 	$screen_name = trim($temp[0]);
+    $name = str_replace(')','',$temp[1]);
+
 	$comment_content = str_replace('%%screen_name%%',$screen_name,$comment_content);
 	$comment_content = str_replace('%%blog_name%%',$blog_name,$comment_content);
     $comment_content = str_replace('%%plugin_url%%',WP_PLUGIN_URL,$comment_content);
@@ -618,6 +660,7 @@ function ccClear()
     delete_option( "cc_postTrackbacks");
     delete_option( "cc_postAsAdmin");
     delete_option( "cc_template");
+    delete_option( "cc_comment_author");
     delete_option( "cc_exclude");
 }
 
@@ -626,13 +669,14 @@ function ccClear()
 //*****************************************************************************
 function chatcatcher_configuration()
 {
-    global $cc_secret, $postTrackbacks, $postAsAdmin, $cc_template, $cc_exclude;
+    global $cc_secret, $postTrackbacks, $postAsAdmin, $cc_template, $cc_comment_author, $cc_exclude;
 
 		// Save Options
 		if (isset($_POST["cc_save"]) || isset($_POST["cc_activate"])) {
 			// ...the options are updated.
 			update_option('cc_secret', stripslashes($_POST["cc_secret"]) );
 			update_option('cc_template', stripslashes($_POST["cc_template"]) );
+			update_option('cc_comment_author', stripslashes($_POST["cc_comment_author"]) );
 			update_option('cc_exclude', stripslashes($_POST["cc_exclude"]) );
 			update_option('cc_postTrackbacks',
 				( $_POST["cc_postTrackbacks"] == 1 ? 'Y' : 'N' ));
@@ -650,6 +694,9 @@ function chatcatcher_configuration()
 		    update_option( "cc_postAsAdmin" , "Y" );
 	    if ( get_option( "cc_template" ) == "" )
 		    update_option( "cc_template" , $cc_template );
+	    if ( get_option( "cc_comment_author" ) == "" )
+		    update_option( "cc_comment_author" , $cc_comment_author );
+
 	
 		// Clear?
 		if(isset($_POST["cc_clear"]))
@@ -660,6 +707,7 @@ function chatcatcher_configuration()
 		// Get the Data
 		$cc_secret = get_option('cc_secret');
 		$cc_template = get_option('cc_template');
+		$cc_comment_author = get_option('cc_comment_author');
 		$cc_exclude = get_option('cc_exclude');
 		$cc_postTrackbacks = ( get_option('cc_postTrackbacks') == 'Y' ?
 			"checked='true'" : "");
@@ -679,9 +727,11 @@ function chatcatcher_configuration()
       <h4>Actions</h4>
       <p>
         <a href="http://www.chatcatcher.com/tester.aspx?&a=<?php
-        $siteurl = cc_slashit(get_option('siteurl'));
-        echo $siteurl; ?>?ccwp=true" target="_blank">Test Chat Catcher
+        $siteurl = get_option('siteurl');
+        $siteurl_slash = cc_slashit($siteurl);
+        echo $siteurl_slash; ?>?ccwp=true&s=<?php echo $cc_secret ?>" target="_blank">Test Chat Catcher
         </a> | <a href="http://www.chatcatcher.com" target="_blank">Chat Catcher Home</a>
+        | <a href="http://www.chatcatcher.com/da.aspx?siteurl=<?php echo $siteurl ?>&secret=<?php echo $cc_secret ?>" target="_blank">Data Export</a>
       </p>
       <p class="submit">
         <input type='submit' name='cc_activate' value='Register This Blog' />
@@ -730,6 +780,13 @@ function chatcatcher_configuration()
             <small>You can modify the HTML in this comment template.  Special variables are enclosed in double-percent signs.  Do not remove %%excerpt%% (the main comment).</small>
           </td>
         </tr>
+        <tr>
+          <td valign="top">Comment Author Format</td>
+          <td>
+            <input type="text" name='cc_comment_author' value="<?php echo $cc_comment_author; ?>" size="50" />
+          </td>
+        </tr>
+
       </table>
       <p class="submit">
         <input type='submit' name='cc_save' value='Save Settings' />
