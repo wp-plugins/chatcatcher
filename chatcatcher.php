@@ -4,7 +4,7 @@
 //* This script can be used with any blog engine.
 //* 
 //*****************************************************************************
-$ccVersion = 2.53;
+$ccVersion = 2.54;
 
 //*****************************************************************************
 //* WORDPRESS USERS - Stop.  All settings should be changed within WordPress.
@@ -73,7 +73,7 @@ $cclog='N';
 	Description: Post comments from social media services to your blog.
 	Author: Shannon Whitley
 	Author URI: http://chatcatcher.com
-	Version: 2.53
+	Version: 2.54
 */
 
 //*****************************************************************************
@@ -243,8 +243,8 @@ function cc_comment_author($comment_author)
 	    $screen_name = trim($temp[0]);
         $name = str_replace(')','',$temp[1]);
 
-	    $cc_comment_author = str_replace('%%screen_name%%',$screen_name,$cc_comment_author);
-	    $comment_author = str_replace('%%name%%',$name,$cc_comment_author);
+	    $comment_author = str_replace('%%screen_name%%',$screen_name,$cc_comment_author);
+	    $comment_author = str_replace('%%name%%',$name,$comment_author);
     }
     return $comment_author;
 }
