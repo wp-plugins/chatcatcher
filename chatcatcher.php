@@ -4,7 +4,7 @@
 //* This script can be used with any blog engine.
 //* 
 //*****************************************************************************
-$ccVersion = 2.63;
+$ccVersion = 2.64;
 
 //*****************************************************************************
 //* WORDPRESS USERS - Stop.  All settings should be changed within WordPress.
@@ -73,7 +73,7 @@ $cclog='N';
 	Description: Post comments from social media services to your blog.
 	Author: Shannon Whitley
 	Author URI: http://chatcatcher.com
-	Version: 2.63
+	Version: 2.64
 */
 
 //*****************************************************************************
@@ -150,15 +150,15 @@ $cc_plugins = array();
 
 //Plugin File
 //Plugin Files must be named 'xxxxx_cc_plugin.php'
-if ($handle = opendir(dirname(__FILE__))) { 
-    while (false !== ($file = readdir($handle))) {
-        $plugin = explode('cc_plugin.php',$file);
-        if(count($plugin) > 1)
+if ($cchandle = opendir(dirname(__FILE__))) { 
+    while (false !== ($ccfile = readdir($cchandle))) {
+        $ccplugin = explode('cc_plugin.php',$ccfile);
+        if(count($ccplugin) > 1)
         {
-            include_once(dirname(__FILE__).'/'.$file);        
+            include_once(dirname(__FILE__).'/'.$ccfile);        
         }
     } 
-    closedir($handle); 
+    closedir($cchandle); 
 }
 
 //WordPress
