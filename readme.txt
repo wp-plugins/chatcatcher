@@ -4,7 +4,7 @@ Donate link:
 Tags: comments, Twitter, FriendFeed, identi.ca, social media, blog, tweetback,  tinyurl
 Requires at least: 2.7
 Tested up to: 2.7
-Stable tag: 2.54
+Stable tag: 2.62
 
 Post comments from social media services to your blog.
 
