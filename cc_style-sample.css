@@ -1,5 +1,23 @@
 /* Chat Catcher Styles
 -- To activate, simply rename this file to style.css.
+
+You may need to update your Template variable on the Chat Catcher Settings page
+if your template does not include class="ccimg1".  
+
+The updated template variable is shown below (from <strong> through %%excerpt%%).
+
+Copy it to your settings page and save.
+
+<strong>%%title%%</strong>
+<a href="%%profile_link%%" title="%%title%%">
+<div class="ccimg1" title="%%blog_name%%" style="float:left;margin-right:10px;padding:0;width:60px;height:60px;background:url(%%plugin_url%%/chatcatcher/picbg.jpg) no-repeat top;cursor:hand;">
+</div>
+<div class="ccimg2" title="%%blog_name%%" style="float:left;margin-left:-70px;margin-right:10px;padding:0;width:60px;height:60px;background:url(%%pic%%) no-repeat top;cursor:hand;">
+</div>
+</a>
+%%excerpt%%
+
+
 */
 
 /*Used for DISQUS image alignment.*/
