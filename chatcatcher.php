@@ -4,7 +4,7 @@
 //* This script can be used with any blog engine.
 //* 
 //*****************************************************************************
-$ccVersion = 2.54;
+$ccVersion = 2.62;
 
 //*****************************************************************************
 //* WORDPRESS USERS - Stop.  All settings should be changed within WordPress.
@@ -73,7 +73,7 @@ $cclog='N';
 	Description: Post comments from social media services to your blog.
 	Author: Shannon Whitley
 	Author URI: http://chatcatcher.com
-	Version: 2.54
+	Version: 2.62
 */
 
 //*****************************************************************************
@@ -85,14 +85,15 @@ $cclog='N';
 $cc_template = <<<KEEPME2
 <strong>%%title%%</strong>
 <a href="%%profile_link%%" title="%%title%%">
-<div title="%%blog_name%%" style="float:left;margin-right:10px;padding:0;width:60px;height:60px;background:url(%%plugin_url%%/chatcatcher/picbg.jpg) no-repeat top;cursor:hand;">
+<div class="ccimg1" title="%%blog_name%%" style="float:left;margin-right:10px;padding:0;width:60px;height:60px;background:url(%%plugin_url%%/chatcatcher/picbg.jpg) no-repeat top;cursor:hand;">
 </div>
-<div title="%%blog_name%%" style="float:left;margin-left:-70px;margin-right:10px;padding:0;width:60px;height:60px;background:url(%%pic%%) no-repeat top;cursor:hand;">
+<div class="ccimg2" title="%%blog_name%%" style="float:left;margin-left:-70px;margin-right:10px;padding:0;width:60px;height:60px;background:url(%%pic%%) no-repeat top;cursor:hand;">
 </div>
 </a>
 %%excerpt%%
 KEEPME2;
 
+//Initialize the comment author format.
 $cc_comment_author="%%screen_name%% (%%name%%)";
 
 //*****************************************************************************
@@ -116,7 +117,7 @@ $postAsAdmin = 'Y';
 //*****************************************************************************
 
 /*
-Copyright (c) 2008 Whitley Media
+Copyright (c) 2009 Whitley Media
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -141,12 +142,32 @@ THE SOFTWARE.
 //* MAIN
 //*****************************************************************************
 $WPBlog = 'N';
-$pageShow = 'Y';
-if(function_exists('get_option'))
+if(!isset($pageShow))
+{
+    $pageShow = 'Y';
+}
+$cc_plugins = array();
+
+//Plugin File
+//Plugin Files must be named 'xxxxx_cc_plugin.php'
+if ($handle = opendir(dirname(__FILE__))) { 
+    while (false !== ($file = readdir($handle))) {
+        $plugin = explode('cc_plugin.php',$file);
+        if(count($plugin) > 1)
+        {
+            include_once(dirname(__FILE__).'/'.$file);        
+        }
+    } 
+    closedir($handle); 
+}
+
+//WordPress
+if(function_exists('wp_signon'))
 {
     add_action("init", "cc_contact_accept",1);
     add_filter("get_avatar", "cc_get_avatar");
     add_filter("get_comment_author", "cc_comment_author");
+    add_action('wp_head', 'cc_add_headers', 0);	
     $WPBlog = 'Y';
    	add_action("admin_menu", "cc_config_page");
     $pageShow = 'N';
@@ -185,25 +206,16 @@ if(!isset($_REQUEST["ccwp"]))
   }
   else
   {
-      $postComments = 'N';
-      if($WPBlog == 'Y' && $postTrackbacks == 'N')
-      {
-          $postComments = 'Y';
-      }
       if($pageShow == 'Y')
       {
     	  header('Content-Type: text/html; charset=UTF-8');
     	  echo '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">';
           echo '<html><head><title>Chat Catcher</title></head><body>';
           echo '<div style="font-family:Arial"><h1>Chat Catcher</h1>';
-          if($WPBlog != 'Y')
-          {
-              echo '<p><a href="chatcatcher.php?blog_activate=1">Activate This Script</a></p>';
-          }
+          echo '<p><a href="chatcatcher.php?blog_activate=1">Activate This Script</a></p>';
           echo '<p><a href="http://www.chatcatcher.com/tester.aspx?&a='.cc_selfURL().'">Test This Script</a></p>';
           echo '<p>&nbsp;</p><p><strong>System Information</strong>';
           echo '<br/>Version: '.$ccVersion.'<br/>';
-          echo '<br/>WordPress Blog: '.$WPBlog.'<br/>Post Comments: '.$postComments.'<br/>Post Trackbacks: '.$postTrackbacks.'</p>';
           echo '<p><a href="http://www.chatcatcher.com">Chat Catcher</a></p>';
           echo '</div>';
           echo '</body></html>';
@@ -249,6 +261,18 @@ function cc_comment_author($comment_author)
     return $comment_author;
 }
 
+//*****************************************************************************
+//* cc_add_headers - Add special header code for Chat Catcher.
+//*****************************************************************************
+function cc_add_headers()
+{
+    $cc_style = WP_PLUGIN_URL.'/chatcatcher/cc_style.css';
+    if(file_exists(WP_PLUGIN_DIR.'/chatcatcher/cc_style.css'))
+    {
+        wp_enqueue_style('cc_css', $cc_style, false, 'screen');
+	    wp_print_styles(array('cc_css'));
+    }
+}
 
 
 //*****************************************************************************
@@ -256,7 +280,7 @@ function cc_comment_author($comment_author)
 //*****************************************************************************
 function ccTrackBack() {
 
-    global $cc_exclude, $WPBlog, $postTrackbacks;
+    global $cc_exclude, $WPBlog, $postTrackbacks, $cc_plugins;
     
     $cc_exclude = str_replace("\r","",$cc_exclude);
     $excludeArray = explode("\n",$cc_exclude);
@@ -275,7 +299,7 @@ function ccTrackBack() {
     foreach($excludeArray as $screen_name)
     {
         $screen_name = trim($screen_name);
-        if($blog_screen_name == $screen_name)
+        if(strtolower($blog_screen_name) == strtolower($screen_name))
         {
             ccTrackback_response(0, 'Excluded User');
             return;
@@ -289,29 +313,42 @@ function ccTrackBack() {
     }
     else
     {
-        //Standard Trackback
-        $title = urlencode(stripslashes($title));
-        $excerpt = urlencode(stripslashes($excerpt));
-        $url = urlencode($url);
-        $blog_name = urlencode(stripslashes($blog_name));
+        if(count($cc_plugins) > 0)
+        {
+            foreach($cc_plugins as $cc_plugin)
+            {
+                if(strlen($cc_plugin) > 0)
+                {
+                    $cc_plugin($title,$excerpt, $url, $blog_name, $tb_url, $pic, $profile_link);
+                }
+            }
+        }
+        else
+        {
+            //Standard Trackback
+            $title = urlencode(stripslashes($title));
+            $excerpt = urlencode(stripslashes($excerpt));
+            $url = urlencode($url);
+            $blog_name = urlencode(stripslashes($blog_name));
 
-	    $query_string = "title=$title&url=$url&blog_name=$blog_name&excerpt=$excerpt";
-	    $trackback_url = parse_url($tb_url);
-	    $http_request = 'POST ' . $trackback_url['path'] . ($trackback_url['query'] ? '?'.$trackback_url['query'] : '') . " HTTP/1.0\r\n";
-	    $http_request .= 'Host: '.$trackback_url['host']."\r\n";
-	    $http_request .= 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8'."\r\n";
-	    $http_request .= 'Content-Length: '.strlen($query_string)."\r\n";
-	    $http_request .= "User-Agent: Chat Catcher/1";
-	    $http_request .= "\r\n\r\n";
-	    $http_request .= $query_string;
-	    $port = 80;
-	    if(isset($trackback_url['port']))
-	    {
-	        $port = $trackback_url['port'];
+	        $query_string = "title=$title&url=$url&blog_name=$blog_name&excerpt=$excerpt";
+	        $trackback_url = parse_url($tb_url);
+	        $http_request = 'POST ' . $trackback_url['path'] . ($trackback_url['query'] ? '?'.$trackback_url['query'] : '') . " HTTP/1.0\r\n";
+	        $http_request .= 'Host: '.$trackback_url['host']."\r\n";
+	        $http_request .= 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8'."\r\n";
+	        $http_request .= 'Content-Length: '.strlen($query_string)."\r\n";
+	        $http_request .= "User-Agent: Chat Catcher/1";
+	        $http_request .= "\r\n\r\n";
+	        $http_request .= $query_string;
+	        $port = 80;
+	        if(isset($trackback_url['port']))
+	        {
+	            $port = $trackback_url['port'];
+	        }
+	        $fs = @fsockopen($trackback_url['host'], $port, $errno, $errstr, 4);
+	        @fputs($fs, $http_request);
+	        @fclose($fs);
 	    }
-	    $fs = @fsockopen($trackback_url['host'], $port, $errno, $errstr, 4);
-	    @fputs($fs, $http_request);
-	    @fclose($fs);
 	}
 	
     if(strlen($errstr) > 0)
@@ -457,8 +494,6 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
 
         //Convert div to code -- DISQUS doesn't allow div.
         $comment_content = str_replace('div','code',$comment_content);
-        //Adjust top of background.
-        $comment_content = str_replace('background:url(http://s3.amazonaws.com/static.whitleymedia/picbg.jpg)','margin-top:15px;background:url(http://s3.amazonaws.com/static.whitleymedia/picbg.jpg)',$comment_content);
         //Create the comment on DISQUS.
         $dsq_response = $cc_dsq_api->create_post($thread_id,$comment_content,$comment_author,$comment_author_email,$comment_author_url);
         if( $dsq_response < 0 ) {
