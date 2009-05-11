@@ -4,7 +4,7 @@
 //* This script can be used with any blog engine.
 //* 
 //*****************************************************************************
-$ccVersion = 2.64;
+$ccVersion = 2.67;
 
 //*****************************************************************************
 //* WORDPRESS USERS - Stop.  All settings should be changed within WordPress.
@@ -73,7 +73,7 @@ $cclog='N';
 	Description: Post comments from social media services to your blog.
 	Author: Shannon Whitley
 	Author URI: http://chatcatcher.com
-	Version: 2.64
+	Version: 2.67
 */
 
 //*****************************************************************************
@@ -610,7 +610,7 @@ function ccPlugin_Register() {
     } 
     $siteurl = get_option('siteurl');
     $home = get_option('home');
-    $plugin_url = cc_slashit($siteurl).'?ccwp=true';
+    $plugin_url = cc_slashit($home).'?ccwp=true';
     $email = get_option("admin_email");
 
     $snoopy = new Snoopy();
@@ -705,6 +705,13 @@ function ccClear()
 function chatcatcher_configuration()
 {
     global $cc_secret, $postTrackbacks, $postAsAdmin, $cc_template, $cc_comment_author, $cc_exclude;
+    
+        //Update the Bad Behavior Whitelist
+        if(isset($_POST["cc_badbehavior"]))
+        {
+            cc_BadBehaviorWhiteList();
+            echo 'Bad Behavior Whitelist Updated';
+        }
 
 		// Save Options
 		if (isset($_POST["cc_save"]) || isset($_POST["cc_activate"])) {
@@ -762,15 +769,28 @@ function chatcatcher_configuration()
       <h4>Actions</h4>
       <p>
         <a href="http://www.chatcatcher.com/tester.aspx?&a=<?php
-        $siteurl = get_option('siteurl');
-        $siteurl_slash = cc_slashit($siteurl);
-        echo $siteurl_slash; ?>?ccwp=true&s=<?php echo $cc_secret ?>" target="_blank">Test Chat Catcher
+        $home = get_option('home');
+        $home_slash = cc_slashit($home);
+        echo $home_slash; ?>?ccwp=true&s=<?php echo $cc_secret ?>" target="_blank">Test Chat Catcher
         </a> | <a href="http://www.chatcatcher.com" target="_blank">Chat Catcher Home</a>
-        | <a href="http://www.chatcatcher.com/da.aspx?siteurl=<?php echo $siteurl ?>&secret=<?php echo $cc_secret ?>" target="_blank">Data Export</a>
+        | <a href="http://www.chatcatcher.com/da.aspx?siteurl=<?php echo $home ?>&secret=<?php echo $cc_secret ?>" target="_blank">Data Export</a>
       </p>
       <p class="submit">
         <input type='submit' name='cc_activate' value='Register This Blog' />
       </p>
+      <?php
+        $file = WP_PLUGIN_DIR.'/bad-behavior/bad-behavior/whitelist.inc.php';
+        if(file_exists($file)) {
+      ?>
+      <p class="submit">
+        <input type='submit' name='cc_badbehavior' value='Update the Bad Behavior Whitelist' />
+        <br/><br/><small>
+          Click on this button to add the Chat Catcher server<br/>to the Bad Behavior Whitelist.
+          <br/>(Must be done after each Bad Behavior upgrade.)
+        </small>
+
+      </p>
+      <?php } ?>
 
       <h4>Options</h4>
       <table cellspacing="20" width="60%">
@@ -859,6 +879,32 @@ function cc_NewGuid() {
     return $guidText;
 }
 
+//*****************************************************************************
+//* cc_BadBehaviorWhiteList
+//*****************************************************************************
+function cc_BadBehaviorWhiteList()
+{
+    $ccip = '174.129.96.212';  //Make this dynamic in the future.
+    // Open file for read and string modification
+    $file = WP_PLUGIN_DIR.'/bad-behavior/bad-behavior/whitelist.inc.php';
+    $searchString = '$bb2_whitelist_ip_ranges = array(';
+    $replaceString = '$bb2_whitelist_ip_ranges = array("'.$ccip.'",';
+    if(file_exists($file))
+    {
+        $fh = fopen($file, 'r+');
+        $contents = fread($fh, filesize($file));
+        if(strpos($contents,$ccip) === false)
+        {
+            $new_contents = str_replace($searchString, $replaceString, $contents);
+            fclose($fh);
+            
+            // Open file to write
+            $fh = fopen($file, 'r+');
+            fwrite($fh, $new_contents);
+            fclose($fh);
+        }
+    }
+}
 
 //*****************************************************************************
 //* cc_selfURL - Utility to get the url of the current page

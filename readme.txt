@@ -1,12 +1,15 @@
 === Plugin Name ===
 Contributors: swhitley
 Donate link: 
-Tags: comments, Twitter, FriendFeed, identi.ca, social media, blog, tweetback,  tinyurl
+Tags: comments, Twitter, FriendFeed, identi.ca, social media, blog, tweetback, tinyurl, bit.ly
 Requires at least: 2.7
 Tested up to: 2.7
-Stable tag: 2.64
+Stable tag: 2.67
 
 Post comments from social media services to your blog.
+
+Examples can be found on this post (look for `Twitter Comment`) - http://www.voiceoftech.com/swhitley/?p=640
+
 
 Chat Catcher - http://chatcatcher.com
 
@@ -21,4 +24,15 @@ Post comments from social media services to your blog.
 1. Navigate to the `Chat Catcher` admin page under `Settings`.
 1. Review the options and make any necessary changes.
 1. Click on `Register This Blog`.  The plugin will contact the Chat Catcher server and confirm your registration.
+
+
+== Change Log ==
+
+2.67
+
+05/11/2009 Shannon Whitley   
+
+- Bad Behavior Whitelisting.  A button was added to the Chat Catcher Settings page.
+  Click on the button to add the Chat Catcher server to the Bad Behavior Whitelist.
+- The plugin now sends the correct url when a blog's siteurl and home url are not the same.
 
