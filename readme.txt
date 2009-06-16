@@ -3,8 +3,8 @@ Contributors: swhitley
 Donate link: 
 Tags: comments, Twitter, FriendFeed, identi.ca, social media, blog, tweetback, tinyurl, bit.ly
 Requires at least: 2.7
-Tested up to: 2.7
-Stable tag: 2.67
+Tested up to: 2.8
+Stable tag: 2.68
 
 Post comments from social media services to your blog.
 
@@ -27,6 +27,15 @@ Post comments from social media services to your blog.
 
 
 == Change Log ==
+
+2.68
+
+06/16/2009 Shannon Whitley   
+
+- Default Template - Change default template to rely on img tag for profile image.
+- You should clear out your "Template" textbox and let it default to the new text.
+- Gravatars - New option to position profile image as gravatar.
+- Email Address - Clearly note that email address is required and provide opportunity to change.
 
 2.67
 

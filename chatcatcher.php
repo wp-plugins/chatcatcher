@@ -4,7 +4,7 @@
 //* This script can be used with any blog engine.
 //* 
 //*****************************************************************************
-$ccVersion = 2.67;
+$ccVersion = 2.68;
 
 //*****************************************************************************
 //* WORDPRESS USERS - Stop.  All settings should be changed within WordPress.
@@ -73,7 +73,7 @@ $cclog='N';
 	Description: Post comments from social media services to your blog.
 	Author: Shannon Whitley
 	Author URI: http://chatcatcher.com
-	Version: 2.67
+	Version: 2.68
 */
 
 //*****************************************************************************
@@ -85,9 +85,8 @@ $cclog='N';
 $cc_template = <<<KEEPME2
 <strong>%%title%%</strong>
 <a href="%%profile_link%%" title="%%title%%">
-<div class="ccimg1" title="%%blog_name%%" style="float:left;margin-right:10px;padding:0;width:60px;height:60px;background:url(%%plugin_url%%/chatcatcher/picbg.jpg) no-repeat top;cursor:hand;">
-</div>
-<div class="ccimg2" title="%%blog_name%%" style="float:left;margin-left:-70px;margin-right:10px;padding:0;width:60px;height:60px;background:url(%%pic%%) no-repeat top;cursor:hand;">
+<div class="ccimg1" title="%%blog_name%%" style="float:left;margin-right:10px;padding:0;width:60px;height:60px;">
+<img name="cc_image" title="%%blog_name%%" style="float:left;margin-right:10px;padding:0;width:50px;height:50px;" src="%%pic%%">
 </div>
 </a>
 %%excerpt%%
@@ -167,7 +166,8 @@ if(function_exists('wp_signon'))
     add_action("init", "cc_contact_accept",1);
     add_filter("get_avatar", "cc_get_avatar");
     add_filter("get_comment_author", "cc_comment_author");
-    add_action('wp_head', 'cc_add_headers', 0);	
+    add_filter("comment_text", "cc_comment_text");    
+    //add_action('wp_head', 'cc_add_headers', 0);	
     $WPBlog = 'Y';
    	add_action("admin_menu", "cc_config_page");
     $pageShow = 'N';
@@ -179,12 +179,14 @@ if(function_exists('wp_signon'))
       $postTrackbacks = get_option('cc_postTrackbacks');
     if ( get_option( "cc_postAsAdmin" ) != "" )
       $postAsAdmin = get_option('cc_postAsAdmin');
-    if ( get_option( "cc_template" ) != "" )
+    if ( get_option( "cc_template" ) != ""  && !isset($_POST["cc_template"]))
       $cc_template = get_option('cc_template');
     if ( get_option( "cc_comment_author" ) != "" )
       $cc_comment_author = get_option('cc_comment_author');
     if ( get_option( "cc_exclude" ) != "" )
       $cc_exclude = get_option('cc_exclude');
+    if ( get_option( "cc_use_gravatar" ) != "" )
+      $cc_use_gravatar = get_option('cc_use_gravatar');      
 }
 
 if(!isset($_REQUEST["ccwp"]))
@@ -229,18 +231,51 @@ if(isset($_GET['blog_activate']))
 }
 
 //*****************************************************************************
-//* cc_get_avatar - Hide avatar on Chat Catcher comments.
+//* cc_get_avatar - Hide avatar on Chat Catcher comments or display as gravatar.
 //*****************************************************************************
 function cc_get_avatar($avatar)
 {
     $ret = $avatar; 
+    global $cc_use_gravatar;
+        
     $text = get_comment_text();
-    if(strpos($text,'picbg.jpg') > 0)
+    if(strpos($text,'cc_image') > 0)
     {
-        $ret = '';
+        if($cc_use_gravatar == 'Y')
+        {
+            $pattern = '/<img[^>]+src[\\s=\'"]';
+            $pattern .= '+([^"\'>\\s]+)/is';
+            if(preg_match($pattern,$text,$match))
+            {
+                $ret = "<img alt='' src='$match[1]' class='avatar avatar-32 photo avatar-default' height='32' width='32' />";
+            }
+        }
+        else
+        {
+            $ret = '';
+        }
     }
     return $ret;
 }
+
+//*****************************************************************************
+//* cc_comment_text - Remove image from text.
+//*****************************************************************************
+function cc_comment_text($comment_text)
+{
+    global $cc_use_gravatar;
+    
+    if(strpos($comment_text,'cc_image') > 0  && is_single())
+    {
+        if($cc_use_gravatar == 'Y')
+        {
+            $comment_text = strip_tags($comment_text,'<a><p><strong><br><li><ul>');
+        }
+    }
+
+    return $comment_text;
+}
+
 
 //*****************************************************************************
 //* cc_comment_author - Reformat the name based on user preference.
@@ -494,6 +529,9 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
 
         //Convert div to code -- DISQUS doesn't allow div.
         $comment_content = str_replace('div','code',$comment_content);
+        $comment_content = strip_tags($comment_content,'<a><p><br><strong><code>');
+        $comment_content = str_replace('float:left;','background: url('.$pic.') no-repeat;float:left;',$comment_content);        
+
         //Create the comment on DISQUS.
         $dsq_response = $cc_dsq_api->create_post($thread_id,$comment_content,$comment_author,$comment_author_email,$comment_author_url);
         if( $dsq_response < 0 ) {
@@ -611,7 +649,7 @@ function ccPlugin_Register() {
     $siteurl = get_option('siteurl');
     $home = get_option('home');
     $plugin_url = cc_slashit($home).'?ccwp=true';
-    $email = get_option("admin_email");
+    $email = get_option("cc_admin_email");
 
     $snoopy = new Snoopy();
     $snoopy->agent = 'WP-ChatCatcher (Snoopy)';
@@ -720,8 +758,11 @@ function chatcatcher_configuration()
 			update_option('cc_template', stripslashes($_POST["cc_template"]) );
 			update_option('cc_comment_author', stripslashes($_POST["cc_comment_author"]) );
 			update_option('cc_exclude', stripslashes($_POST["cc_exclude"]) );
+			update_option('cc_admin_email', stripslashes($_POST["cc_admin_email"]) );
 			update_option('cc_postTrackbacks',
 				( $_POST["cc_postTrackbacks"] == 1 ? 'Y' : 'N' ));
+			update_option('cc_use_gravatar',
+				( $_POST["cc_use_gravatar"] == 1 ? 'Y' : 'N' ));
 			//Reverse the logic for the user.
 			update_option('cc_postAsAdmin',
 				( $_POST["cc_postAsAdmin"] == 1 ? 'N' : 'Y' ));
@@ -734,10 +775,14 @@ function chatcatcher_configuration()
 		    update_option( "cc_postTrackbacks" , "Y" );
 	    if ( get_option( "cc_postAsAdmin" ) == "" )
 		    update_option( "cc_postAsAdmin" , "Y" );
+	    if ( get_option( "cc_use_gravatar" ) == "" )
+		    update_option( "cc_use_gravatar" , "N" );		    
 	    if ( get_option( "cc_template" ) == "" )
 		    update_option( "cc_template" , $cc_template );
 	    if ( get_option( "cc_comment_author" ) == "" )
 		    update_option( "cc_comment_author" , $cc_comment_author );
+	    if ( get_option( "cc_admin_email" ) == "" )
+		    update_option( "cc_admin_email" , get_option("admin_email") );
 
 	
 		// Clear?
@@ -753,10 +798,13 @@ function chatcatcher_configuration()
 		$cc_exclude = get_option('cc_exclude');
 		$cc_postTrackbacks = ( get_option('cc_postTrackbacks') == 'Y' ?
 			"checked='true'" : "");
+		$cc_use_gravatar = ( get_option('cc_use_gravatar') == 'Y' ?
+			"checked='true'" : "");			
 		$postTrackbacks = get_option('cc_postTrackbacks');
 		$cc_postAsAdmin = ( get_option('cc_postAsAdmin') == 'N' ?
 			"checked='true'" : "");
 		$postAsAdmin = get_option('cc_postAsAdmin');
+		$cc_admin_email = get_option('cc_admin_email');
 		
 		// Register
 		if (isset($_POST["cc_activate"])) {
@@ -777,21 +825,27 @@ function chatcatcher_configuration()
       </p>
       <p class="submit">
         <input type='submit' name='cc_activate' value='Register This Blog' />
+        <br/><br/><small>You must register your blog with Chat Catcher.<br/>The address of this blog, your Chat Catcher secret, and<br/>
+        the email address below will be sent to <a href="http://chatcatcher.com" target="_blank">Chat Catcher</a>.</small>
+      </p>
+      <p>
+      Email Address:  <input type="text" id="cc_admin_email" name="cc_admin_email" value="<?php echo $cc_admin_email ?>" size="50" />
+      <br/><small>This contact email address is only used for important service notifications.</small>
       </p>
       <?php
-        $file = WP_PLUGIN_DIR.'/bad-behavior/bad-behavior/whitelist.inc.php';
-        if(file_exists($file)) {
+        //$file = WP_PLUGIN_DIR.'/bad-behavior/bad-behavior/whitelist.inc.php';
+        //if(file_exists($file)) {
       ?>
-      <p class="submit">
+      <!--<p class="submit">
         <input type='submit' name='cc_badbehavior' value='Update the Bad Behavior Whitelist' />
         <br/><br/><small>
           Click on this button to add the Chat Catcher server<br/>to the Bad Behavior Whitelist.
           <br/>(Must be done after each Bad Behavior upgrade.)
         </small>
 
-      </p>
-      <?php } ?>
-
+      </p>-->
+      <?php //} ?>
+<p>&nbsp;</p>
       <h4>Options</h4>
       <table cellspacing="20" width="60%">
         <tr>
@@ -827,6 +881,14 @@ function chatcatcher_configuration()
             <br/><small>Check this box if you'd like to moderate all Chat Catcher posts.</small>
           </td>
         </tr>
+        <td valign="top">Use Gravatar?</td>
+        <td>
+          <input type='checkbox' name='cc_use_gravatar' value='1' 
+            <?php echo $cc_use_gravatar ?>/>
+            <br/><small>Check this box if you'd like to remove the default profile image from the comment and display it in the gravatar position.  Your theme must already support gravatars.</small>
+          </td>
+        </tr>
+        
         <tr>
           <td valign="top">Template</td>
           <td>
