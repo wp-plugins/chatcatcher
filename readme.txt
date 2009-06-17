@@ -4,7 +4,7 @@ Donate link:
 Tags: comments, Twitter, FriendFeed, identi.ca, social media, blog, tweetback, tinyurl, bit.ly
 Requires at least: 2.7
 Tested up to: 2.8
-Stable tag: 2.68
+Stable tag: 2.69
 
 Post comments from social media services to your blog.
 
@@ -27,6 +27,13 @@ Post comments from social media services to your blog.
 
 
 == Change Log ==
+
+2.69
+
+06/17/2009 Shannon Whitley   
+
+- Moderate All option fixed.
+
 
 2.68
 

@@ -4,7 +4,7 @@
 //* This script can be used with any blog engine.
 //* 
 //*****************************************************************************
-$ccVersion = 2.68;
+$ccVersion = 2.69;
 
 //*****************************************************************************
 //* WORDPRESS USERS - Stop.  All settings should be changed within WordPress.
@@ -73,7 +73,7 @@ $cclog='N';
 	Description: Post comments from social media services to your blog.
 	Author: Shannon Whitley
 	Author URI: http://chatcatcher.com
-	Version: 2.68
+	Version: 2.69
 */
 
 //*****************************************************************************
@@ -405,6 +405,7 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
    
     $title     = stripslashes($title);
     $excerpt   = stripslashes($excerpt);
+    $excerpt   = str_replace('Posted using Chat Catcher','<a href="http://chatcatcher.com">Posted using Chat Catcher</a>',$excerpt);
     $blog_name = stripslashes($blog_name);
    
     $tb_id = url_to_postid($tb_url); 
@@ -475,7 +476,15 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
 
 	$commentdata = wp_filter_comment($commentdata);
 
-	$commentdata['comment_approved'] = wp_allow_comment($commentdata);
+    if($postAsAdmin == 'Y')
+    {
+  	    $commentdata['comment_approved'] = wp_allow_comment($commentdata);
+  	}
+  	else
+  	{
+  	    $commentdata['comment_approved'] = 0;
+  	}
+  	
 
     $comment_ID = wp_insert_comment($commentdata);
 
