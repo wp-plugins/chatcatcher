@@ -17,15 +17,6 @@ Chat Catcher - http://chatcatcher.com
 
 Post comments from social media services to your blog.
 
-== Installation ==
-
-1. Upload `chatcatcher.php` and the included image files to the `/wp-content/plugins/chatcatcher/` directory.
-1. Activate the plugin through the 'Plugins' menu in WordPress.
-1. Navigate to the `Chat Catcher` admin page under `Settings`.
-1. Review the options and make any necessary changes.
-1. Click on `Register This Blog`.  The plugin will contact the Chat Catcher server and confirm your registration.
-
-
 Changes in Version 2.75
 
 - New Custom Trackback comment type.  Separate Chat Catcher trackbacks from regular trackbacks/pingbacks using the custom trackback type.
@@ -34,6 +25,14 @@ Changes in Version 2.75
 - Word/Phrase List: Enter any word or phrase into the list and Chat Catcher will moderate or delete comments based on the text you supply.  This feature can be used to filter retweets.
 - Nested Comments:  Chat Catcher will post nested comments (parent/child relationships).  If your theme supports nested comments, you will see the nesting in the comment display.
 
+
+== Installation ==
+
+1. Upload `chatcatcher.php` and the included image files to the `/wp-content/plugins/chatcatcher/` directory.
+1. Activate the plugin through the 'Plugins' menu in WordPress.
+1. Navigate to the `Chat Catcher` admin page under `Settings`.
+1. Review the options and make any necessary changes.
+1. Click on `Register This Blog`.  The plugin will contact the Chat Catcher server and confirm your registration.
 
 
 == Change Log ==
