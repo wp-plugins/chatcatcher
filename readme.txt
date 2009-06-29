@@ -4,7 +4,7 @@ Donate link:
 Tags: comments, Twitter, FriendFeed, identi.ca, social media, blog, tweetback, tinyurl, bit.ly
 Requires at least: 2.7
 Tested up to: 2.8
-Stable tag: 2.69
+Stable tag: 2.75
 
 Post comments from social media services to your blog.
 
@@ -26,7 +26,26 @@ Post comments from social media services to your blog.
 1. Click on `Register This Blog`.  The plugin will contact the Chat Catcher server and confirm your registration.
 
 
+Changes in Version 2.75
+
+- New Custom Trackback comment type.  Separate Chat Catcher trackbacks from regular trackbacks/pingbacks using the custom trackback type.
+- Username List:  New options to moderate or delete a comment if a match is found in the list.
+- Replies:  Chat Catcher now captures Replies.  'Replies' are comments that are associated with a post, but they do not contain a link to the post.  Replies can be moderated or deleted automatically.
+- Word/Phrase List: Enter any word or phrase into the list and Chat Catcher will moderate or delete comments based on the text you supply.  This feature can be used to filter retweets.
+- Nested Comments:  Chat Catcher will post nested comments (parent/child relationships).  If your theme supports nested comments, you will see the nesting in the comment display.
+
+
+
 == Change Log ==
+
+2.75
+
+- New Custom Trackback comment type.  Separate Chat Catcher trackbacks from regular trackbacks/pingbacks using the custom trackback type.
+- Username List:  New options to moderate or delete a comment if a match is found in the list.
+- Replies:  Chat Catcher now captures Replies.  'Replies' are comments that are associated with a post, but they do not contain a link to the post.  Replies can be moderated or deleted automatically.
+- Word/Phrase List: Enter any word or phrase into the list and Chat Catcher will moderate or delete comments based on the text you supply.  This feature can be used to filter retweets.
+- Nested Comments:  Chat Catcher will post nested comments (parent/child relationships).  If your theme supports nested comments, you will see the nesting in the comment display.
+
 
 2.69
 

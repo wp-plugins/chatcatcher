@@ -4,7 +4,7 @@
 //* This script can be used with any blog engine.
 //* 
 //*****************************************************************************
-$ccVersion = 2.69;
+$ccVersion = 2.75;
 
 //*****************************************************************************
 //* WORDPRESS USERS - Stop.  All settings should be changed within WordPress.
@@ -58,6 +58,28 @@ ThirdUser
 KEEPME1;
 
 //*****************************************************************************
+//* Word/Phrase Exclusions
+//* 
+//* A list of words or phrases which will cause rejections.
+//* Each word or phrase should begin on a separate line.  Start by
+//* replacing FirstWord, SecondWord, and ThirdWord.  Add additional lines
+//* as needed, above the last KEEPMEWORD line.  
+//*****************************************************************************
+//Do not include '@'
+$cc_exclude_words = <<<KEEPMEWORD
+FirstWord
+SecondWord
+ThirdWord
+KEEPMEWORD;
+
+//*****************************************************************************
+//* Exclude Replies - Replies are comments that are associated with a post,
+//* but they do not contain a link to the post.
+//* Values 'P' (post), 'D' (delete)
+//*****************************************************************************
+$cc_exclude_replies_action ='P';
+
+//*****************************************************************************
 //* Log - Writes a log file.
 //* Values 'Y' or 'N'
 //*****************************************************************************
@@ -73,7 +95,7 @@ $cclog='N';
 	Description: Post comments from social media services to your blog.
 	Author: Shannon Whitley
 	Author URI: http://chatcatcher.com
-	Version: 2.69
+	Version: 2.75
 */
 
 //*****************************************************************************
@@ -94,22 +116,6 @@ KEEPME2;
 
 //Initialize the comment author format.
 $cc_comment_author="%%screen_name%% (%%name%%)";
-
-//*****************************************************************************
-//* WordPress: Post As Trackback
-//*                           
-//* Values 'Y' or 'N'
-//* 'Y' to post as a trackback.  'N' to post as a regular comment.
-//*****************************************************************************
-$postTrackbacks = 'Y';
-
-//*****************************************************************************
-//* WordPress: Post As Admin - Avoids several moderation checks.
-//*                           
-//* Values 'Y' or 'N'
-//* Set to 'N' if you'd like to moderate Chat Catcher comments.
-//*****************************************************************************
-$postAsAdmin = 'Y';
 
 //*****************************************************************************
 //* END SETTINGS - Stop!!!
@@ -175,16 +181,10 @@ if(function_exists('wp_signon'))
     //Globals
     if ( get_option( "cc_secret" ) != "" )
       $cc_secret = get_option('cc_secret');
-    if ( get_option( "cc_postTrackbacks" ) != "" )
-      $postTrackbacks = get_option('cc_postTrackbacks');
-    if ( get_option( "cc_postAsAdmin" ) != "" )
-      $postAsAdmin = get_option('cc_postAsAdmin');
     if ( get_option( "cc_template" ) != ""  && !isset($_POST["cc_template"]))
       $cc_template = get_option('cc_template');
     if ( get_option( "cc_comment_author" ) != "" )
       $cc_comment_author = get_option('cc_comment_author');
-    if ( get_option( "cc_exclude" ) != "" )
-      $cc_exclude = get_option('cc_exclude');
     if ( get_option( "cc_use_gravatar" ) != "" )
       $cc_use_gravatar = get_option('cc_use_gravatar');      
 }
@@ -239,7 +239,7 @@ function cc_get_avatar($avatar)
     global $cc_use_gravatar;
         
     $text = get_comment_text();
-    if(strpos($text,'cc_image') > 0)
+    if(strpos($text,'cc_image') !== false)
     {
         if($cc_use_gravatar == 'Y')
         {
@@ -265,7 +265,7 @@ function cc_comment_text($comment_text)
 {
     global $cc_use_gravatar;
     
-    if(strpos($comment_text,'cc_image') > 0  && is_single())
+    if(strpos($comment_text,'cc_image') !== false  && is_single())
     {
         if($cc_use_gravatar == 'Y')
         {
@@ -315,10 +315,7 @@ function cc_add_headers()
 //*****************************************************************************
 function ccTrackBack() {
 
-    global $cc_exclude, $WPBlog, $postTrackbacks, $cc_plugins;
-    
-    $cc_exclude = str_replace("\r","",$cc_exclude);
-    $excludeArray = explode("\n",$cc_exclude);
+    global $cc_exclude, $cc_exclude_words, $cc_exclude_replies_action, $WPBlog, $cc_plugins;
     
     $title = $_POST['title'];
     $excerpt = $_POST['excerpt'];
@@ -327,27 +324,58 @@ function ccTrackBack() {
     $tb_url = $_POST['trackback-uri'];
     $pic = $_POST['pic'];
     $profile_link = $_POST['profile_link'];
+    $in_reply_to = '';
+    if(isset($_POST['in_reply_to']))
+    {
+        $in_reply_to = $_POST['in_reply_to'];    
+    }
     
     $temp = explode('(',$blog_name);
     $blog_screen_name = trim($temp[0]);
     
-    foreach($excludeArray as $screen_name)
-    {
-        $screen_name = trim($screen_name);
-        if(strtolower($blog_screen_name) == strtolower($screen_name))
-        {
-            ccTrackback_response(0, 'Excluded User');
-            return;
-        }
-    }
-    
     if($WPBlog == 'Y')
     {
         //WordPress Comment
-        ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile_link);
+        ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile_link, $in_reply_to);
     }
     else
     {
+        //Process user exclusion list.
+        $cc_exclude = str_replace("\r","",$cc_exclude);
+        $excludeArray = explode("\n",$cc_exclude);
+        foreach($excludeArray as $screen_name)
+        {
+            $screen_name = trim($screen_name);
+            if(strtolower($blog_screen_name) == strtolower($screen_name))
+            {
+                ccTrackback_response(0, 'Excluded User');
+                return;
+            }
+        }
+        
+        //Process word exclusion list.
+        $cc_exclude_words = str_replace("\r","",$cc_exclude_words);
+        $excludeArray = explode("\n",$cc_exclude_words);
+        foreach($excludeArray as $word)
+        {
+            $word = trim($word);
+            if(strpos($excerpt, $word) !== false)
+            {
+                ccTrackback_response(0, 'Excluded Word '.$word);
+                return;
+            }
+        }
+        
+        //Exclude Replies
+        if($cc_exclude_replies_action != 'P')
+        {
+            if(strpos($excerpt, '[link to post]') === false)
+            {
+                ccTrackback_response(0, 'Excluded Reply');
+                return;
+            }
+        }
+        
         if(count($cc_plugins) > 0)
         {
             foreach($cc_plugins as $cc_plugin)
@@ -361,51 +389,44 @@ function ccTrackBack() {
         else
         {
             //Standard Trackback
-            $title = urlencode(stripslashes($title));
-            $excerpt = urlencode(stripslashes($excerpt));
-            $url = urlencode($url);
-            $blog_name = urlencode(stripslashes($blog_name));
-
-	        $query_string = "title=$title&url=$url&blog_name=$blog_name&excerpt=$excerpt";
-	        $trackback_url = parse_url($tb_url);
-	        $http_request = 'POST ' . $trackback_url['path'] . ($trackback_url['query'] ? '?'.$trackback_url['query'] : '') . " HTTP/1.0\r\n";
-	        $http_request .= 'Host: '.$trackback_url['host']."\r\n";
-	        $http_request .= 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8'."\r\n";
-	        $http_request .= 'Content-Length: '.strlen($query_string)."\r\n";
-	        $http_request .= "User-Agent: Chat Catcher/1";
-	        $http_request .= "\r\n\r\n";
-	        $http_request .= $query_string;
-	        $port = 80;
-	        if(isset($trackback_url['port']))
-	        {
-	            $port = $trackback_url['port'];
-	        }
-	        $fs = @fsockopen($trackback_url['host'], $port, $errno, $errstr, 4);
-	        @fputs($fs, $http_request);
-	        @fclose($fs);
+            $title = stripslashes($title);
+            $excerpt = stripslashes($excerpt);
+            $url = $url;
+            $blog_name = stripslashes($blog_name);
+            
+            $http = new Http();
+            $http->setMethod('POST');
+            $http->addParam('title', $title);
+            $http->addParam('url', $url);
+            $http->addParam('blog_name', $blog_name);
+            $http->addParam('excerpt', $excerpt);
+            $http->setTimeout(120);                    
+            $http->execute($tb_url);
+            $results = ($http->error) ? $http->error : $http->result;
 	    }
 	}
 	
-    if(strlen($errstr) > 0)
-    {
-        ccTrackback_response(1, $errstr);
-    }
-    else
-    {
-        ccTrackback_response(0, '');
-    }	
+	die($results);
+
 }
 
 //*****************************************************************************
 //* ccWPComment - WordPress Comment Processing
 //*****************************************************************************
-function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile_link)
+function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile_link, $in_reply_to)
 {
-    global $wpdb, $wp_query, $postAsAdmin, $cc_template, $cc_comment_author, $postTrackbacks;
-   
+    global $wpdb, $wp_query, $cc_template, $cc_comment_author;
+    
+    $moderate_comments = get_option('cc_moderate_comments');
+    $moderate_this = 'N';
+    if($moderate_comments == 'Y')
+    {
+        $moderate_this = 'Y';
+    }
+    
     $title     = stripslashes($title);
     $excerpt   = stripslashes($excerpt);
-    $excerpt   = str_replace('Posted using Chat Catcher','<a href="http://chatcatcher.com">Posted using Chat Catcher</a>',$excerpt);
+    $excerpt   = str_replace('Posted using Chat Catcher','<a href="http://chatcatcher.com" target="_blank">Posted using Chat Catcher</a>',$excerpt);
     $blog_name = stripslashes($blog_name);
    
     $tb_id = url_to_postid($tb_url); 
@@ -413,12 +434,13 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
     if ( !intval( $tb_id ) )
 	    ccTrackback_response(1, 'I really need an ID for this to work.');
 
-    //Convert to standard comment.
-    $comment_type = '';
-    if($postTrackbacks == 'Y')
+    //Set Comment Type
+    $comment_type = get_option('cc_comment_type');
+    if($comment_type == 'comment')
     {
-        $comment_type = 'trackback';
+        $comment_type = '';
     }
+    
 	$comment_post_ID = (int) $tb_id;
 	$comment_author = $blog_name;
 	$comment_author_email = '';
@@ -433,6 +455,64 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
 	$temp = explode('(',$blog_name);
 	$screen_name = trim($temp[0]);
     $name = str_replace(')','',$temp[1]);
+    
+    //Process user exclusion list.
+    $cc_exclude = str_replace("\r","",get_option('cc_exclude'));
+    $excludeArray = explode("\n",$cc_exclude);
+    foreach($excludeArray as $screen_name_exclude)
+    {
+        $screen_name_exclude = trim($screen_name_exclude);
+        if(strtolower($screen_name_exclude) == strtolower($screen_name))
+        {
+            if(get_option('cc_exclude_action') == 'D')
+            {
+                ccTrackback_response(0, 'Excluded User');
+                return;
+            }
+            else
+            {
+                $moderate_this = 'Y';   
+            }
+        }
+    }
+    
+    //Process word exclusion list.
+    $cc_exclude_words = str_replace("\r","",get_option('cc_exclude_words'));
+    $excludeArray = explode("\n",$cc_exclude_words);
+    foreach($excludeArray as $word)
+    {
+        $word = trim($word);
+        if(strpos($excerpt, $word) !== false)
+        {
+            if(get_option('cc_exclude_words_action') == 'D')
+            {
+                ccTrackback_response(0, 'Excluded Word '.$word);
+                return;
+            }
+            else
+            {
+                $moderate_this = 'Y';
+            }
+        }
+    }
+    
+    //Exclude Replies
+    $cc_exclude_replies_action = get_option('cc_exclude_replies_action');    
+    if($cc_exclude_replies_action != 'P')
+    {
+        if(strpos($excerpt, '[link to post]') === false)
+        {
+            if($cc_exclude_replies_action == 'D')
+            {
+                ccTrackback_response(0, 'Excluded Reply');
+                return;
+            }
+            else
+            {
+                $moderate_this = 'Y';  
+            }
+        }
+    }
 
 	$comment_content = str_replace('%%screen_name%%',$screen_name,$comment_content);
 	$comment_content = str_replace('%%blog_name%%',$blog_name,$comment_content);
@@ -441,10 +521,21 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
 	$dupe = $wpdb->get_results( $wpdb->prepare("SELECT * FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_author_url = %s", $comment_post_ID, $comment_author_url) );
 	if ( $dupe )
 		ccTrackback_response(1, 'We already have a ping from that URL for this post.');
+	
+	$comment_parent = 0;	
+	
+    if(strlen($in_reply_to) > 0)
+    {
+    	$parents = $wpdb->get_results( $wpdb->prepare("SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_author_url = %s", $comment_post_ID, $in_reply_to) );
+        foreach($parents as $parent)
+        {
+            $comment_parent = $parent->comment_ID;
+        }
+    }    
 
-    //Post as admin user to avoid spam filter.
+    //Do not moderate so post as admin.
     //Retrieve admin users
-    if($postAsAdmin == 'Y')
+    if($moderate_comments != 'Y')
     {
         $users = $wpdb->get_results( "SELECT user_id FROM $wpdb->users, $wpdb->usermeta WHERE " . $wpdb->users . ".ID = " . $wpdb->usermeta . ".user_id AND meta_key = '" . $wpdb->prefix . "capabilities' and meta_value='10' LIMIT 1 " );
         foreach($users as $user)
@@ -453,7 +544,7 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
         }
 	    $userdata = get_userdata($user_id);
     }
-	$commentdata = compact('comment_post_ID', 'comment_author', 'comment_author_email', 'comment_author_url', 'comment_content', 'comment_type', 'userdata');
+	$commentdata = compact('comment_post_ID', 'comment_author', 'comment_author_email', 'comment_author_url', 'comment_content', 'comment_type', 'userdata', 'comment_parent');
 
     //Allows HTML
     kses_remove_filters();
@@ -476,15 +567,14 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
 
 	$commentdata = wp_filter_comment($commentdata);
 
-    if($postAsAdmin == 'Y')
+    if($moderate_this == 'Y')
     {
-  	    $commentdata['comment_approved'] = wp_allow_comment($commentdata);
+  	    $commentdata['comment_approved'] = 0;
   	}
   	else
   	{
-  	    $commentdata['comment_approved'] = 0;
+  	    $commentdata['comment_approved'] = wp_allow_comment($commentdata);  	
   	}
-  	
 
     $comment_ID = wp_insert_comment($commentdata);
 
@@ -739,8 +829,8 @@ function cc_config_page()
 function ccClear()
 {
     delete_option( "cc_secret");
-    delete_option( "cc_postTrackbacks");
-    delete_option( "cc_postAsAdmin");
+    delete_option( "cc_comment_type");
+    delete_option( "cc_moderate_comments");
     delete_option( "cc_template");
     delete_option( "cc_comment_author");
     delete_option( "cc_exclude");
@@ -751,7 +841,7 @@ function ccClear()
 //*****************************************************************************
 function chatcatcher_configuration()
 {
-    global $cc_secret, $postTrackbacks, $postAsAdmin, $cc_template, $cc_comment_author, $cc_exclude;
+    global $cc_secret, $cc_template, $cc_comment_author, $cc_exclude;
     
         //Update the Bad Behavior Whitelist
         if(isset($_POST["cc_badbehavior"]))
@@ -767,23 +857,64 @@ function chatcatcher_configuration()
 			update_option('cc_template', stripslashes($_POST["cc_template"]) );
 			update_option('cc_comment_author', stripslashes($_POST["cc_comment_author"]) );
 			update_option('cc_exclude', stripslashes($_POST["cc_exclude"]) );
+			update_option('cc_exclude_words', stripslashes($_POST["cc_exclude_words"]) );			
 			update_option('cc_admin_email', stripslashes($_POST["cc_admin_email"]) );
-			update_option('cc_postTrackbacks',
-				( $_POST["cc_postTrackbacks"] == 1 ? 'Y' : 'N' ));
+			update_option('cc_comment_type',stripslashes($_POST["cc_comment_type"]) );
+			
+			update_option('cc_exclude_action', $_POST["cc_exclude_action"] );
+			update_option('cc_exclude_words_action', $_POST["cc_exclude_words_action"] );			
+			update_option('cc_exclude_replies_action', $_POST["cc_exclude_replies_action"] );						
+			
+			
 			update_option('cc_use_gravatar',
 				( $_POST["cc_use_gravatar"] == 1 ? 'Y' : 'N' ));
 			//Reverse the logic for the user.
-			update_option('cc_postAsAdmin',
-				( $_POST["cc_postAsAdmin"] == 1 ? 'N' : 'Y' ));
+			update_option('cc_moderate_comments',
+				( $_POST["cc_moderate_comments"] == 1 ? 'Y' : 'N' ));
 		}
 		
 	    // First Time?
 	    if ( get_option( "cc_secret" ) == "" )
             update_option( "cc_secret" , cc_NewGuid() );
-	    if ( get_option( "cc_postTrackbacks" ) == "" )
-		    update_option( "cc_postTrackbacks" , "Y" );
-	    if ( get_option( "cc_postAsAdmin" ) == "" )
-		    update_option( "cc_postAsAdmin" , "Y" );
+	    if ( get_option( "cc_comment_type" ) == "" )
+	    {
+	        $cc_postTrackbacks = get_option( "cc_postTrackbacks" );
+	        delete_option( "cc_postTrackbacks" );
+	        if($cc_postTrackbacks == 'Y')
+	        {
+	            update_option( "cc_comment_type" , "trackback" );
+	        }
+	        if($cc_postTrackbacks == 'N')
+	        {
+		        update_option( "cc_comment_type" , "comment" );
+		    }
+  	        if($cc_postTrackbacks == '')
+  	        {
+    	        update_option( "cc_comment_type" , "trackback" );
+  	        }
+        }
+	    
+	    if ( get_option( "cc_exclude_action" ) == "" )
+		    update_option( "cc_exclude_action" , "D" );
+	    if ( get_option( "cc_exclude_words_action" ) == "" )
+		    update_option( "cc_exclude_words_action" , "D" );		    
+	    if ( get_option( "cc_exclude_replies_action" ) == "" )
+		    update_option( "cc_exclude_replies_action" , "P" );		    
+		    	    
+	    if ( get_option( "cc_postAsAdmin" ) == 'Y' )
+	    {
+		    update_option( "cc_moderate_comments" , "N" );		    
+		    delete_option( "cc_postAsAdmin" );		    
+		}
+	    if ( get_option( "cc_postAsAdmin" ) == 'N' )
+	    {
+		    update_option( "cc_moderate_comments" , "Y" );		    
+		    delete_option( "cc_postAsAdmin" );		    
+		}
+		
+	    if ( get_option( "cc_moderate_comments" ) == "" )
+		    update_option( "cc_moderate_comments" , "N" );		    		
+	    
 	    if ( get_option( "cc_use_gravatar" ) == "" )
 		    update_option( "cc_use_gravatar" , "N" );		    
 	    if ( get_option( "cc_template" ) == "" )
@@ -805,14 +936,15 @@ function chatcatcher_configuration()
 		$cc_template = get_option('cc_template');
 		$cc_comment_author = get_option('cc_comment_author');
 		$cc_exclude = get_option('cc_exclude');
-		$cc_postTrackbacks = ( get_option('cc_postTrackbacks') == 'Y' ?
-			"checked='true'" : "");
+		$cc_exclude_action = get_option('cc_exclude_action');		
+		$cc_exclude_words = get_option('cc_exclude_words');		
+		$cc_exclude_words_action = get_option('cc_exclude_words_action');				
+		$cc_exclude_replies_action = get_option('cc_exclude_replies_action');						
+		$cc_comment_type = get_option('cc_comment_type');
 		$cc_use_gravatar = ( get_option('cc_use_gravatar') == 'Y' ?
 			"checked='true'" : "");			
-		$postTrackbacks = get_option('cc_postTrackbacks');
-		$cc_postAsAdmin = ( get_option('cc_postAsAdmin') == 'N' ?
+		$cc_moderate_comments = ( get_option('cc_moderate_comments') == 'Y' ?
 			"checked='true'" : "");
-		$postAsAdmin = get_option('cc_postAsAdmin');
 		$cc_admin_email = get_option('cc_admin_email');
 		
 		// Register
@@ -862,34 +994,79 @@ function chatcatcher_configuration()
           <td>
             <input type='text' name='cc_secret' value='<?php echo $cc_secret ?>' size="50" />
                 <br/><small>
-                  A secret is required to communicate with the Chat Catcher server.<br/>You should not need to change this unless you have already registered this blog.
+                  A secret is required to communicate with the Chat Catcher server.<br/>You should not need to change this.
                 </small>
               
           </td>
         </tr>
         <tr>
-          <td valign="top">Exclusion List</td>
+          <td valign="top">Comment Type</td>
+          <td>
+          <select name="cc_comment_type">
+            <option value='comment' <?php if($cc_comment_type == 'comment'){echo 'selected';} ?> >Comment</option>
+            <option value='trackback' <?php if($cc_comment_type == 'trackback'){echo 'selected';} ?> >Trackback</option>
+            <option value='ctrackback' <?php if($cc_comment_type == 'ctrackback'){echo 'selected';} ?> >Custom Trackback</option>
+           </select>
+              <br/><small>Set the default comment type for each incoming comment.<br/>Changing this value does not affect previously saved comments.<br/>Control the display of these comments in your theme.<br/>[comment_type = '', 'trackback', or 'ctrackback'].<br/><br/><a href="http://www.voiceoftech.com/swhitley/?p=728" target="_blank">Custom Trackbacks</a> require special WordPress theme modifications.</small>
+            </td>
+        </tr>
+        <tr>
+        <td valign="top">Moderate All?</td>
+        <td>
+          <input type='checkbox' name='cc_moderate_comments' value='1' 
+            <?php echo $cc_moderate_comments ?>/>
+            &nbsp;&nbsp;<small>Check this box if you'd like to moderate all Chat Catcher posts.</small>
+          </td>
+        </tr>
+        <tr><td colspan="2"><hr/></td></tr>        
+        <tr>
+          <td valign="top">Username List</td>
           <td>
             <textarea name='cc_exclude' rows="5" cols="50"><?php echo $cc_exclude; ?></textarea>
             <br/>
-            <small>A list of users who will be rejected.  You may include your own username.  Each username should begin on a separate line.</small>
+            <small>Scan for usernames from external services.  You may include your own username.  Each username must begin on a separate line.</small>
+            <br/><br/>            
+           Action When Found:
+          <input type='radio' name='cc_exclude_action' value='M' 
+            <?php if($cc_exclude_action == 'M'){echo ' checked ';} ?> /> Moderate 
+          <input type='radio' name='cc_exclude_action' value='D' 
+            <?php if($cc_exclude_action == 'D'){echo ' checked ';} ?> /> Delete            
+            <br/><br/>
           </td>
         </tr>
+        <tr><td colspan="2"><hr/></td></tr>
         <tr>
-          <td valign="top">Post Trackbacks?</td>
-          <td>
-            <input type='checkbox' name='cc_postTrackbacks' value='1' 
-              <?php echo $cc_postTrackbacks ?>/>
-              <br/><small>If this box is checked Chat Catcher will post trackbacks to your blog.  If unchecked, Chat Catcher will post a normal comment.</small>
-            </td>
-        </tr>
-        <td valign="top">Moderate All?</td>
+        <td valign="top">Replies</td>
         <td>
-          <input type='checkbox' name='cc_postAsAdmin' value='1' 
-            <?php echo $cc_postAsAdmin ?>/>
-            <br/><small>Check this box if you'd like to moderate all Chat Catcher posts.</small>
+        'Replies' are comments that are associated with a post, but they do not contain a link to the post.<br/><br/>
+        Action When Found:
+          <input type='radio' name='cc_exclude_replies_action' value='P' 
+            <?php if($cc_exclude_replies_action == 'P'){echo ' checked ';} ?> /> Publish        
+          <input type='radio' name='cc_exclude_replies_action' value='M' 
+            <?php if($cc_exclude_replies_action == 'M'){echo ' checked ';} ?> /> Moderate
+          <input type='radio' name='cc_exclude_replies_action' value='D' 
+            <?php if($cc_exclude_replies_action == 'D'){echo ' checked ';} ?> /> Delete            
+            <br/><br/>
           </td>
         </tr>
+        <tr><td colspan="2"><hr/></td></tr>
+         <tr>
+          <td valign="top">Word/Phrase List</td>
+          <td>
+            <textarea name='cc_exclude_words' rows="5" cols="50"><?php echo $cc_exclude_words; ?></textarea>
+            <br/>
+            <small>The comment will be scanned for any of the words or phrases contained in this list.  Each entry must begin on a separate line.  Example:  Enter <code>RT @</code> to scan for retweets.</small>
+            <br/><br/>
+           Action When Found:
+          <input type='radio' name='cc_exclude_words_action' value='M' 
+            <?php if($cc_exclude_words_action == 'M'){echo 'checked';} ?> /> Moderate 
+          <input type='radio' name='cc_exclude_words_action' value='D' 
+            <?php if($cc_exclude_words_action == 'D'){echo 'checked';} ?> /> Delete            
+            <br/><br/>
+          </td>
+        </tr>
+        <tr><td colspan="2"><hr/></td></tr>
+        <tr>
         <td valign="top">Use Gravatar?</td>
         <td>
           <input type='checkbox' name='cc_use_gravatar' value='1' 
@@ -897,7 +1074,6 @@ function chatcatcher_configuration()
             <br/><small>Check this box if you'd like to remove the default profile image from the comment and display it in the gravatar position.  Your theme must already support gravatars.</small>
           </td>
         </tr>
-        
         <tr>
           <td valign="top">Template</td>
           <td>
