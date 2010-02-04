@@ -1,10 +1,10 @@
 <?php
-//*****************************************************************************
+/*****************************************************************************
 //* Chat Catcher Script
 //* This script can be used with any blog engine.
 //* 
 //*****************************************************************************
-$ccVersion = 2.75;
+$ccVersion = 2.80;
 
 //*****************************************************************************
 //* WORDPRESS USERS - Stop.  All settings should be changed within WordPress.
@@ -73,8 +73,7 @@ ThirdWord
 KEEPMEWORD;
 
 //*****************************************************************************
-//* Exclude Replies - Replies are comments that are associated with a post,
-//* but they do not contain a link to the post.
+//* Exclude Replies - Replies are comments that do not contain links to the post.
 //* Values 'P' (post), 'D' (delete)
 //*****************************************************************************
 $cc_exclude_replies_action ='P';
@@ -95,7 +94,7 @@ $cclog='N';
 	Description: Post comments from social media services to your blog.
 	Author: Shannon Whitley
 	Author URI: http://chatcatcher.com
-	Version: 2.75
+	Version: 2.80
 */
 
 //*****************************************************************************
@@ -169,6 +168,8 @@ if ($cchandle = opendir(dirname(__FILE__))) {
 //WordPress
 if(function_exists('wp_signon'))
 {
+    if ( get_option( "cc_more" ) != "" )
+      $cc_more = get_option('cc_more');
     add_action("init", "cc_contact_accept",1);
     add_filter("get_avatar", "cc_get_avatar");
     add_filter("get_comment_author", "cc_comment_author");
@@ -177,6 +178,13 @@ if(function_exists('wp_signon'))
     $WPBlog = 'Y';
    	add_action("admin_menu", "cc_config_page");
     $pageShow = 'N';
+    if($cc_more == 'Y')
+    {
+        add_action('comment_form', 'cc_comment_form');
+    }
+
+ 
+
 
     //Globals
     if ( get_option( "cc_secret" ) != "" )
@@ -228,6 +236,60 @@ if(!isset($_REQUEST["ccwp"]))
 if(isset($_GET['blog_activate']))
 {
     ccBlog_Register();
+}
+
+function cc_comment_form()
+{
+//Thank you - http://websitebuildersresource.com/2008/12/20/show-partial-content-slide-animate-with-jquery/
+echo '<script type="text/javascript">
+var $j = jQuery.noConflict();
+// Set the initial height
+var sliderHeight;
+$j(document).ready(function(){
+sliderHeight = $j(".slider").attr("more");
+if($j(".slider").height() < sliderHeight)
+{
+    $j(".slider_menu").html("");
+    return;
+}
+	// Show the slider content
+	$j(".slider").show();
+	$j(".slider").each(function () {
+		var current = $j(this);
+		current.attr("box_h", current.height()+$j(".slider_menu").height());
+	});
+	$j(".slider").css("height",sliderHeight);
+         $j(".slider").css("overflow","hidden");
+});
+// Set the initial slider state
+var slider_state = "close";
+function sliderAction()
+{
+	if (slider_state == "close")
+	{
+		sliderOpen();
+		slider_state = "open"
+		$j(".slider_menu").html("<a href=\"#\" onclick=\"return sliderAction();\">Close</a>");
+	}
+	else if (slider_state == "open")
+	{
+		sliderClose();
+		slider_state = "close";
+		$j(".slider_menu").html("<a href=\"#\" onclick=\"return sliderAction();\">More...</a>");
+	}
+	return false;
+}
+function sliderOpen()
+{
+	var open_height = $j(".slider").attr("box_h") + "px";
+	$j(".slider").animate({"height": open_height}, {duration: "slow" });
+}
+function sliderClose()
+{
+	$j(".slider").animate({"height": sliderHeight}, {duration: "slow" });
+}
+</script>';
+
 }
 
 //*****************************************************************************
@@ -332,7 +394,7 @@ function ccTrackBack() {
     
     $temp = explode('(',$blog_name);
     $blog_screen_name = trim($temp[0]);
-    
+
     if($WPBlog == 'Y')
     {
         //WordPress Comment
@@ -340,6 +402,8 @@ function ccTrackBack() {
     }
     else
     {
+
+
         //Process user exclusion list.
         $cc_exclude = str_replace("\r","",$cc_exclude);
         $excludeArray = explode("\n",$cc_exclude);
@@ -352,6 +416,7 @@ function ccTrackBack() {
                 return;
             }
         }
+
         
         //Process word exclusion list.
         $cc_exclude_words = str_replace("\r","",$cc_exclude_words);
@@ -365,6 +430,8 @@ function ccTrackBack() {
                 return;
             }
         }
+
+
         
         //Exclude Replies
         if($cc_exclude_replies_action != 'P')
@@ -410,12 +477,15 @@ function ccTrackBack() {
 
 }
 
+    require_once(ABSPATH .'wp-includes/rewrite.php');
+
 //*****************************************************************************
 //* ccWPComment - WordPress Comment Processing
 //*****************************************************************************
 function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile_link, $in_reply_to)
 {
     global $wpdb, $wp_query, $cc_template, $cc_comment_author;
+
     
     $moderate_comments = get_option('cc_moderate_comments');
     $moderate_this = 'N';
@@ -428,8 +498,11 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
     $excerpt   = stripslashes($excerpt);
     $excerpt   = str_replace('Posted using Chat Catcher','<a href="http://chatcatcher.com" target="_blank">Posted using Chat Catcher</a>',$excerpt);
     $blog_name = stripslashes($blog_name);
-   
+
+
     $tb_id = url_to_postid($tb_url); 
+
+
 
     if ( !intval( $tb_id ) )
 	    ccTrackback_response(1, 'I really need an ID for this to work.');
@@ -441,6 +514,7 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
         $comment_type = '';
     }
     
+
 	$comment_post_ID = (int) $tb_id;
 	$comment_author = $blog_name;
 	$comment_author_email = '';
@@ -475,6 +549,8 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
             }
         }
     }
+
+
     
     //Process word exclusion list.
     $cc_exclude_words = str_replace("\r","",get_option('cc_exclude_words'));
@@ -482,7 +558,7 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
     foreach($excludeArray as $word)
     {
         $word = trim($word);
-        if(strpos($excerpt, $word) !== false)
+        if($word && strpos($excerpt, $word) !== false)
         {
             if(get_option('cc_exclude_words_action') == 'D')
             {
@@ -518,6 +594,8 @@ function ccWPComment($title, $excerpt, $url, $blog_name, $tb_url, $pic, $profile
 	$comment_content = str_replace('%%blog_name%%',$blog_name,$comment_content);
     $comment_content = str_replace('%%plugin_url%%',WP_PLUGIN_URL,$comment_content);
 	
+
+
 	$dupe = $wpdb->get_results( $wpdb->prepare("SELECT * FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_author_url = %s", $comment_post_ID, $comment_author_url) );
 	if ( $dupe )
 		ccTrackback_response(1, 'We already have a ping from that URL for this post.');
@@ -716,7 +794,7 @@ function ccLogIt($msg)
 //*****************************************************************************
 function cc_contact_accept()
 {
-    global $cc_secret;
+    global $cc_secret, $cc_more;
     
     if(isset($_REQUEST["ccwp"]) && isset($_REQUEST["secret"]))
     {
@@ -731,6 +809,13 @@ function cc_contact_accept()
         	    header('Content-Type: text; charset=UTF-8');
               die('trackback-uri not found');
             }        
+        }
+    }
+    else
+    {
+        if(!is_admin() && $cc_more == 'Y')
+        {
+            wp_enqueue_script('jquery');            
         }
     }
 }
@@ -868,6 +953,9 @@ function chatcatcher_configuration()
 			
 			update_option('cc_use_gravatar',
 				( $_POST["cc_use_gravatar"] == 1 ? 'Y' : 'N' ));
+                            update_option('cc_more',
+				( $_POST["cc_more"] == 1 ? 'Y' : 'N' ));
+
 			//Reverse the logic for the user.
 			update_option('cc_moderate_comments',
 				( $_POST["cc_moderate_comments"] == 1 ? 'Y' : 'N' ));
@@ -916,7 +1004,10 @@ function chatcatcher_configuration()
 		    update_option( "cc_moderate_comments" , "N" );		    		
 	    
 	    if ( get_option( "cc_use_gravatar" ) == "" )
-		    update_option( "cc_use_gravatar" , "N" );		    
+		    update_option( "cc_use_gravatar" , "N" );	
+	    if ( get_option( "cc_more" ) == "" )
+		    update_option( "cc_more" , "N" );		    
+	    
 	    if ( get_option( "cc_template" ) == "" )
 		    update_option( "cc_template" , $cc_template );
 	    if ( get_option( "cc_comment_author" ) == "" )
@@ -942,6 +1033,8 @@ function chatcatcher_configuration()
 		$cc_exclude_replies_action = get_option('cc_exclude_replies_action');						
 		$cc_comment_type = get_option('cc_comment_type');
 		$cc_use_gravatar = ( get_option('cc_use_gravatar') == 'Y' ?
+			"checked='true'" : "");			
+		$cc_more = ( get_option('cc_more') == 'Y' ?
 			"checked='true'" : "");			
 		$cc_moderate_comments = ( get_option('cc_moderate_comments') == 'Y' ?
 			"checked='true'" : "");
@@ -1007,7 +1100,7 @@ function chatcatcher_configuration()
             <option value='trackback' <?php if($cc_comment_type == 'trackback'){echo 'selected';} ?> >Trackback</option>
             <option value='ctrackback' <?php if($cc_comment_type == 'ctrackback'){echo 'selected';} ?> >Custom Trackback</option>
            </select>
-              <br/><small>Set the default comment type for each incoming comment.<br/>Changing this value does not affect previously saved comments.<br/>Control the display of these comments in your theme.<br/>[comment_type = '', 'trackback', or 'ctrackback'].<br/><br/><a href="http://www.voiceoftech.com/swhitley/?p=728" target="_blank">Custom Trackbacks</a> require special WordPress theme modifications.</small>
+              <br/><small>Set the default comment type for each incoming comment.<br/>Changing this value does not affect previously saved comments.<br/>Control the display of these comments in your theme.<br/>[comment_type = '', 'trackback', or 'ctrackback'].<br/><br/>Custom Trackbacks require special WordPress theme modifications.</small>
             </td>
         </tr>
         <tr>
@@ -1018,7 +1111,6 @@ function chatcatcher_configuration()
             &nbsp;&nbsp;<small>Check this box if you'd like to moderate all Chat Catcher posts.</small>
           </td>
         </tr>
-        <tr><td colspan="2"><hr/></td></tr>        
         <tr>
           <td valign="top">Username List</td>
           <td>
@@ -1034,11 +1126,10 @@ function chatcatcher_configuration()
             <br/><br/>
           </td>
         </tr>
-        <tr><td colspan="2"><hr/></td></tr>
         <tr>
         <td valign="top">Replies</td>
         <td>
-        'Replies' are comments that are associated with a post, but they do not contain a link to the post.<br/><br/>
+        'Replies' are comments that do not include a link to the post.<br/><br/>
         Action When Found:
           <input type='radio' name='cc_exclude_replies_action' value='P' 
             <?php if($cc_exclude_replies_action == 'P'){echo ' checked ';} ?> /> Publish        
@@ -1049,8 +1140,7 @@ function chatcatcher_configuration()
             <br/><br/>
           </td>
         </tr>
-        <tr><td colspan="2"><hr/></td></tr>
-         <tr>
+        <tr>
           <td valign="top">Word/Phrase List</td>
           <td>
             <textarea name='cc_exclude_words' rows="5" cols="50"><?php echo $cc_exclude_words; ?></textarea>
@@ -1065,13 +1155,11 @@ function chatcatcher_configuration()
             <br/><br/>
           </td>
         </tr>
-        <tr><td colspan="2"><hr/></td></tr>
         <tr>
         <td valign="top">Use Gravatar?</td>
         <td>
           <input type='checkbox' name='cc_use_gravatar' value='1' 
-            <?php echo $cc_use_gravatar ?>/>
-            <br/><small>Check this box if you'd like to remove the default profile image from the comment and display it in the gravatar position.  Your theme must already support gravatars.</small>
+            <?php echo $cc_use_gravatar ?>/> <small>Check this box if you'd like to remove the default profile image from the comment and display it in the gravatar position.  Your theme must already support gravatars.</small>
           </td>
         </tr>
         <tr>
@@ -1088,7 +1176,23 @@ function chatcatcher_configuration()
             <input type="text" name='cc_comment_author' value="<?php echo $cc_comment_author; ?>" size="50" />
           </td>
         </tr>
+        <tr>
+        <td valign="top">Use More...</td>
+        <td>
+          <input type='checkbox' name='cc_more' value='1' 
+            <?php echo $cc_more ?>/> <small>(optional) Check this box to turn on jQuery and enable the "more" script.  This will only work on the <strong>comments</strong> page.</small>
+<br/><br/><small>The "more" code below can be wrapped around code in your theme (such as a special-comments section).  The content will be partially hidden.  When this code is used in a theme, a <strong>more</strong> link will display at the bottom of the content.  If the <strong>more</strong> link is clicked, the wrapped content will toggle between <i>display</i> and <i>hide</i>.  The "more" attribute (default=200) tells the script the minimum height (in pixels) to display when the rest of the content is hidden.</small><br/>
+<br/><small>Use this code in your theme:</small><br/>
+<textarea onclick="this.select()" rows="5" cols="50"><div class="slider" more="200">
+{comments loop}
+</div>
+<div class="slider_menu" more="200">
+<a href="#" onclick="return sliderAction();">More...</a>
+</div>
+</textarea>
 
+          </td>
+        </tr>
       </table>
       <p class="submit">
         <input type='submit' name='cc_save' value='Save Settings' />

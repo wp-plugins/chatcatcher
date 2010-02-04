@@ -3,8 +3,8 @@ Contributors: swhitley
 Donate link: 
 Tags: comments, Twitter, FriendFeed, identi.ca, social media, blog, tweetback, tinyurl, bit.ly
 Requires at least: 2.7
-Tested up to: 2.8
-Stable tag: 2.75
+Tested up to: 2.9.1
+Stable tag: 2.80
 
 Post comments from social media services to your blog.
 
@@ -17,13 +17,10 @@ Chat Catcher - http://chatcatcher.com
 
 Post comments from social media services to your blog.
 
-Changes in Version 2.75
+Changes in Version 2.80
 
-- New Custom Trackback comment type.  Separate Chat Catcher trackbacks from regular trackbacks/pingbacks using the custom trackback type.
-- Username List:  New options to moderate or delete a comment if a match is found in the list.
-- Replies:  Chat Catcher now captures Replies.  'Replies' are comments that are associated with a post, but they do not contain a link to the post.  Replies can be moderated or deleted automatically.
-- Word/Phrase List: Enter any word or phrase into the list and Chat Catcher will moderate or delete comments based on the text you supply.  This feature can be used to filter retweets.
-- Nested Comments:  Chat Catcher will post nested comments (parent/child relationships).  If your theme supports nested comments, you will see the nesting in the comment display.
+- Fixed a "strpos" warning that occurred during a search for word exclusions.
+- Added a "more" feature for those who would like to only display a portion of their comments and allow viewers to click to see all (requires theme modifications).
 
 
 == Installation ==
@@ -36,6 +33,12 @@ Changes in Version 2.75
 
 
 == Change Log ==
+
+2.80
+
+- Fixed a "strpos" warning that occurred during a search for word exclusions.
+- Added a "more" feature for those who would like to only display a portion of their comments and allow viewers to click to see all (requires theme modifications).
+
 
 2.75
 
